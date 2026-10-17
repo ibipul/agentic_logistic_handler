@@ -58,6 +58,11 @@
   ol.steps li::before { content: ""; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); }
   ol.steps li.triage::before { border-color: var(--warn); background: var(--warn); }
   ol.steps li.agent::before { border-color: var(--muted); }
+  ol.steps li.thought::before { border-color: var(--muted); border-style: dashed; }
+  .thought-body { color: var(--muted); font-style: italic; font-size: 14px; border-left: 3px solid var(--line); padding-left: 10px; margin-top: 4px; }
+  .thought-body p { margin: 4px 0; }
+  .engine { margin-top: 6px; font-size: 13px; color: var(--muted); background: var(--code); border-radius: 6px; padding: 6px 10px; }
+  .engine code { font: 12px var(--mono); color: var(--text); }
   ol.steps li.pending::before { animation: pulse 1s infinite alternate; }
   @keyframes pulse { to { background: var(--accent); } }
   .step-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -98,12 +103,12 @@
         agent triages: it ships everything it can and tells you which stores will be short.</p>
     </div>
     <div class="chips" id="chips"></div>
-    <textarea id="question" spellcheck="false"></textarea>
+    <textarea id="question" spellcheck="false">{{DEFAULT_QUESTION}}</textarea>
     <div class="row">
       <button class="primary" id="run">Run agent</button>
       <span id="status" class="muted"></span>
       <span style="flex:1"></span>
-      <span id="session-note" class="muted" hidden>Follow-ups continue this conversation · <button class="link" id="reset">New problem</button></span>
+      <span id="session-note" class="muted" hidden>Replace the text to ask a follow-up (e.g. “What if Denver gets 200 more units?”) · <button class="link" id="reset">New problem</button></span>
     </div>
   </section>
 
@@ -134,9 +139,20 @@ const TOOL_LABELS = {
   list_sample_scenarios: "List sample scenarios",
   load_sample_scenario: "Load sample scenario",
   formulate_transportation_problem: "Formulate problem",
-  solve_transportation_problem: "Solve (exact LP)",
-  solve_with_shortage_triage: "Shortage triage (self-healing)",
+  solve_transportation_problem: "Solve (exact LP via open-source PuLP)",
+  solve_with_shortage_triage: "Shortage triage via PuLP (self-healing)",
 };
+
+// What actually ran inside each tool, so it's clear which steps used the open-source PuLP/CBC solver.
+function engineLine(name, r) {
+  const s = r && r.solver;
+  if (s && s.called)
+    return `⚙ Called <b>${esc(s.library)}</b> → <b>${esc(s.solver)}</b><br><code>${esc(s.call)}</code> · ${s.variables} variables, ${s.constraints} constraints · solver status ${esc(s.solver_status)} · ${fmt(s.solve_seconds)} s`;
+  if (s && !s.called) return `⚙ PuLP not called: ${esc(s.reason)}`;
+  if (name === "formulate_transportation_problem") return "⚙ Python tool: validates the data and writes out the LP model (no solver call)";
+  if (name === "list_sample_scenarios" || name === "load_sample_scenario") return "⚙ Python tool: reads built-in sample data (no solver call)";
+  return "";
+}
 
 let sessionId = null;
 let samples = [];
@@ -148,7 +164,7 @@ async function loadSamples() {
     samples = data.samples;
     $("chips").innerHTML = samples.map((s, i) => `<button class="chip" data-i="${i}">${esc(s.label)}</button>`).join("");
     $("chips").onclick = (e) => { const i = e.target.dataset.i; if (i !== undefined) { $("question").value = samples[i].text; resetSession(); } };
-    $("question").value = samples[0].text;
+    if (!$("question").value.trim() || $("question").value.includes("{{")) $("question").value = samples[0].text;
     $("status").textContent = `Model: ${data.model}`;
   } catch (e) {
     $("status").textContent = "Could not reach the server.";
@@ -307,11 +323,15 @@ async function run() {
       if (li) {
         li.classList.remove("pending");
         li.querySelector(".sum").innerHTML = summarize(ev.name, r);
+        const engine = engineLine(ev.name, r);
+        if (engine) li.querySelector(".sum").insertAdjacentHTML("afterend", `<div class="engine">${engine}</div>`);
         li.insertAdjacentHTML("beforeend", `<details><summary>Response</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>`);
       }
       if (ev.name === "formulate_transportation_problem") renderFormulation(li?.args || {}, r);
       if (ev.name === "solve_transportation_problem") { state.solve = r; state.triage = null; renderResult(state); }
       if (ev.name === "solve_with_shortage_triage") { state.triage = r; renderResult(state); }
+    } else if (ev.type === "thought") {
+      addStep("thought", `<div class="step-head"><b>Agent's reasoning</b><span class="muted">Gemini thought summary</span></div><div class="thought-body">${md(ev.text)}</div>`);
     } else if (ev.type === "text") {
       if (ev.final) { state.finalText = ev.text; renderResult(state); }
       else addStep("agent", `<div class="step-head"><b>Agent</b></div><div>${md(ev.text)}</div>`);
@@ -343,8 +363,6 @@ async function run() {
       $("formulation").innerHTML = `<p class="placeholder">The agent did not formulate a problem this turn.</p>`;
     $("status").textContent = "Done.";
     $("session-note").hidden = false;
-    $("question").value = "";
-    $("question").placeholder = "Ask a follow-up, e.g. “What if Denver gets 200 more units?”";
   } catch (e) {
     $("status").textContent = "Request failed: " + e.message;
   } finally {

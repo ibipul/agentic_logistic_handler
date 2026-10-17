@@ -34,7 +34,7 @@ Open **http://localhost:8080**. The first run installs dependencies and takes a 
 
 **Try this (about 3 minutes):**
 
-1. Click **Classic (balanced)**, then **Run agent**. Watch the three sections fill in: problem formulation → tool calls → result. Expect a minimum cost of **$5,700**.
+1. The classic (balanced) problem is already in the text box. Click **Run agent** and watch the three sections fill in: problem formulation → agent steps → result. Expect a minimum cost of **$5,700**. In **Agent steps**, each tool call is preceded by the agent's reasoning (Gemini thought summaries), and the solve step shows the exact open-source PuLP → CBC call it made, with problem size and solve time.
 2. Type a follow-up: *"The Atlanta → Miami route is closed. Re-plan."* Expect **$8,700**, with the agent explaining what changed.
 3. Click **New problem**, then **Shortage → triage** → **Run agent**. The solver reports the problem has no solution (200 units short); the agent then runs the triage step and shows which stores won't be fully served.
 4. Optional: describe your own small network in the text box, e.g. *"Factory A has 100 units, B has 150. Store X needs 120, Y needs 130. A→X $4, A→Y $6, B→X $5, B→Y $3."*

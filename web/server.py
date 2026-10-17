@@ -3,12 +3,14 @@
 Run from the repo root:  uvicorn web.server:app --port 8080
 """
 
+import html
 import json
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -70,12 +72,26 @@ class RunRequest(BaseModel):
 
 @app.get("/")
 async def index():
-    return FileResponse(Path(__file__).parent / "index.html")
+    # Prefill the question box with the classic sample on first load, without waiting for JavaScript.
+    page = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(page.replace("{{DEFAULT_QUESTION}}", html.escape(SAMPLE_QUESTIONS[0]["text"])))
 
 
 @app.get("/api/samples")
 async def samples():
     return JSONResponse({"samples": SAMPLE_QUESTIONS, "model": MODEL})
+
+
+# Gemini's thought summaries sometimes open with a line about the summary itself
+# ("Okay, here's my interpretation of that thought process, ..."). Drop that line; keep the reasoning.
+_SUMMARY_PREAMBLE = re.compile(
+    r"^\s*(okay|ok|alright)?[,\s]*here'?s\b[^\n]*\b(summary|interpretation|thought process|thinking)\b[^\n]*\n+",
+    re.IGNORECASE,
+)
+
+
+def _clean_thought(text: str) -> str:
+    return _SUMMARY_PREAMBLE.sub("", text, count=1).strip()
 
 
 def _line(payload: dict) -> bytes:
@@ -95,13 +111,18 @@ async def run(req: RunRequest):
         message = types.Content(role="user", parts=[types.Part(text=req.question)])
         try:
             async for event in runner.run_async(user_id=USER_ID, session_id=session.id, new_message=message):
+                if event.partial:
+                    continue
+                parts = (event.content.parts if event.content else None) or []
+                # Reasoning first, so the timeline reads "why" before the tool call it led to.
+                thought = _clean_thought("".join(p.text for p in parts if p.text and p.thought))
+                if thought.strip():
+                    yield _line({"type": "thought", "text": thought})
                 for call in event.get_function_calls():
                     yield _line({"type": "tool_call", "id": call.id, "name": call.name, "args": call.args or {}})
                 for resp in event.get_function_responses():
                     yield _line({"type": "tool_result", "id": resp.id, "name": resp.name, "response": resp.response})
-                if event.partial or not event.content or not event.content.parts:
-                    continue
-                text = "".join(p.text for p in event.content.parts if p.text and not p.thought)
+                text = "".join(p.text for p in parts if p.text and not p.thought)
                 if text.strip():
                     yield _line({"type": "text", "text": text, "final": event.is_final_response()})
         except Exception as exc:  # surface model/API errors (bad key, quota) in the page instead of a dead stream

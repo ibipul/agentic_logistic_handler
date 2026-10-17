@@ -2,6 +2,7 @@ import os
 
 from google.adk.agents import Agent
 from google.adk.models.google_llm import Gemini
+from google.adk.planners import BuiltInPlanner
 from google.genai import types
 
 from .tools import (
@@ -62,6 +63,8 @@ root_agent = Agent(
     model=Gemini(model=MODEL, retry_options=RETRY),
     description="Plans least-cost shipments from warehouses to stores, with shortage triage.",
     instruction=INSTRUCTION,
+    # Ask Gemini to return summaries of its reasoning so the web UI can show the agent's thought process.
+    planner=BuiltInPlanner(thinking_config=types.ThinkingConfig(include_thoughts=True)),
     tools=[
         list_sample_scenarios,
         load_sample_scenario,

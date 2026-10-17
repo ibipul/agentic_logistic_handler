@@ -3,11 +3,30 @@
 ADK reads each function's name, type hints and docstring to describe the tool to the model.
 """
 
+import time
+
 import pulp
 
 from .scenarios import SCENARIOS, get_scenario
 
 _EPS = 1e-6
+_SOLVER_CALL = "pulp.LpProblem.solve(pulp.PULP_CBC_CMD(msg=False))"
+
+
+def _run_solver(prob: pulp.LpProblem) -> dict:
+    """Solve with PuLP's bundled CBC solver and describe the call, so the agent and UI can show what ran."""
+    start = time.perf_counter()
+    prob.solve(pulp.PULP_CBC_CMD(msg=False))
+    return {
+        "called": True,
+        "library": f"PuLP {pulp.__version__} (open-source LP modeling library, COIN-OR)",
+        "solver": "CBC: COIN-OR Branch and Cut (open-source LP/MIP solver, bundled with PuLP)",
+        "call": _SOLVER_CALL,
+        "variables": len(prob.variables()),
+        "constraints": len(prob.constraints),
+        "solver_status": pulp.LpStatus[prob.status],
+        "solve_seconds": round(time.perf_counter() - start, 3),
+    }
 
 
 def _num(value) -> float:
@@ -169,6 +188,7 @@ def solve_transportation_problem(
             "total_supply": _num(total_supply),
             "total_demand": _num(total_demand),
             "shortfall": _num(short),
+            "solver": {"called": False, "reason": "Detected from the totals before calling PuLP: no plan can meet demand."},
         }
 
     routes = _routes(c)
@@ -179,9 +199,9 @@ def solve_transportation_problem(
         prob += pulp.lpSum(x[n] for n, (ii, _, _) in enumerate(routes) if ii == i) <= supply
     for j, demand in d.items():
         prob += pulp.lpSum(x[n] for n, (_, jj, _) in enumerate(routes) if jj == j) >= demand
-    prob.solve(pulp.PULP_CBC_CMD(msg=False))
+    solver = _run_solver(prob)
 
-    status = pulp.LpStatus[prob.status]
+    status = solver["solver_status"]
     if status != "Optimal":
         return {
             "status": status.lower(),
@@ -189,6 +209,7 @@ def solve_transportation_problem(
                 f"The solver could not find a plan (status: {status}). Usually this means some store can only "
                 "be reached from warehouses that don't have enough stock for it."
             ),
+            "solver": solver,
         }
 
     shipments = _shipments(routes, x)
@@ -200,6 +221,7 @@ def solve_transportation_problem(
         "unused_supply": {i: _num(s[i] - shipped[i]) for i in s},
         "total_supply": _num(total_supply),
         "total_demand": _num(total_demand),
+        "solver": solver,
     }
 
 
@@ -234,11 +256,15 @@ def solve_with_shortage_triage(
         prob += pulp.lpSum(x[n] for n, (ii, _, _) in enumerate(routes) if ii == i) <= supply
     for k, j in enumerate(stores):
         prob += pulp.lpSum(x[n] for n, (_, jj, _) in enumerate(routes) if jj == j) + unmet[k] == d[j]
-    prob.solve(pulp.PULP_CBC_CMD(msg=False))
+    solver = _run_solver(prob)
 
-    status = pulp.LpStatus[prob.status]
+    status = solver["solver_status"]
     if status != "Optimal":
-        return {"status": status.lower(), "message": f"The triage solver could not find a plan (status: {status})."}
+        return {
+            "status": status.lower(),
+            "message": f"The triage solver could not find a plan (status: {status}).",
+            "solver": solver,
+        }
 
     shipments = _shipments(routes, x)
     stores_short = []
@@ -279,4 +305,5 @@ def solve_with_shortage_triage(
             if stores_short
             else "All demand can be met; no triage needed."
         ),
+        "solver": solver,
     }
