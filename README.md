@@ -257,7 +257,9 @@ The agent then compares the new answer with the previous one: how the total cost
 
 Miami loses its $4 route and now has to be supplied from Dallas ($9) and Denver ($13). That pulls Dallas away from Houston, and the other routes rearrange to cover the gap.
 
-**Example: Atlanta has only 200 units** (with the route reopened). Total supply drops to 1,000 against 1,200 of demand. The tool returns `infeasible`, 200 units short, and the agent suggests ways to close the gap.
+This case has more than one plan that costs exactly $8,700, so the solver may return a different set of routes than the table above (for example, Dallas splitting 150/150 between Houston and Miami). The total cost is always $8,700.
+
+**Example: Atlanta has only 200 units** (with the route reopened). Total supply drops to 1,000 against 1,200 of demand. The solver returns `infeasible`, 200 units short. The agent then runs triage, which delivers all 1,000 units for $4,900: Phoenix, Houston and Chicago are fully served, and Miami gets 200 of its 400 units. The agent says 1 of 4 stores can't be fully served and suggests fixes, such as finding 200 more units for Miami.
 
 ---
 

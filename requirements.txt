@@ -1,5 +1,6 @@
-google-adk
-pulp>=3.0
-fastapi
-uvicorn
-pytest
+google-adk==2.12.0
+google-genai==2.31.0
+pulp==3.3.2
+fastapi==0.141.1
+uvicorn==0.54.0
+pytest==9.1.1

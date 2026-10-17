@@ -1,6 +1,8 @@
 import os
 
 from google.adk.agents import Agent
+from google.adk.models.google_llm import Gemini
+from google.genai import types
 
 from .tools import (
     formulate_transportation_problem,
@@ -51,9 +53,13 @@ What-ifs
   previous result (cost difference, which routes changed).
 """
 
+# The free tier allows only a few requests per minute per model, and one question takes ~3 model calls.
+# Retry rate-limit (429) and transient server errors with backoff instead of failing the run.
+RETRY = types.HttpRetryOptions(attempts=6, initial_delay=5, max_delay=40, exp_base=2, http_status_codes=[429, 500, 503])
+
 root_agent = Agent(
     name="logistics_agent",
-    model=MODEL,
+    model=Gemini(model=MODEL, retry_options=RETRY),
     description="Plans least-cost shipments from warehouses to stores, with shortage triage.",
     instruction=INSTRUCTION,
     tools=[

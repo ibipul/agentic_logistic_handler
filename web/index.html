@@ -273,8 +273,15 @@ async function run() {
   const state = { solve: null, triage: null, finalText: "", error: null };
   const pending = {};
   let n = 0;
+  let lastEvent = Date.now();
+  const slowTimer = setInterval(() => {
+    if (Date.now() - lastEvent > 12000)
+      $("status").innerHTML = `<span class="spinner"></span> Still working… the free Gemini tier allows ~5 requests a minute, so the agent may be waiting to retry.`;
+  }, 2000);
 
   const handle = (ev) => {
+    lastEvent = Date.now();
+    $("status").innerHTML = `<span class="spinner"></span> Agent is working…`;
     if (ev.type === "session") {
       sessionId = ev.session_id;
     } else if (ev.type === "tool_call") {
@@ -331,6 +338,7 @@ async function run() {
   } catch (e) {
     $("status").textContent = "Request failed: " + e.message;
   } finally {
+    clearInterval(slowTimer);
     $("run").disabled = false;
   }
 }
