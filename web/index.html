@@ -28,6 +28,8 @@
   .card h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
   .num { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; align-items: center; justify-content: center;
          background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
+  .intro { margin-bottom: 12px; }
+  .intro p { margin: 0 0 6px; max-width: 78ch; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
   .chip { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
   .chip:hover { border-color: var(--accent); }
@@ -87,6 +89,14 @@
 
   <section class="card">
     <h2>Your question</h2>
+    <div class="intro">
+      <p><b>The transportation problem:</b> warehouses each hold some units, stores each need some units, and every
+        warehouse→store route has a cost per unit. Find how much to ship on each route so every store gets what it
+        needs, no warehouse ships more than it has, and total shipping cost is as low as possible.</p>
+      <p class="muted">Describe in plain language: <b>supply</b> at each warehouse, <b>demand</b> at each store, and the
+        <b>cost per unit</b> for each route. Leave out a route to treat it as closed. If supply falls short of demand, the
+        agent triages: it ships everything it can and tells you which stores will be short.</p>
+    </div>
     <div class="chips" id="chips"></div>
     <textarea id="question" spellcheck="false"></textarea>
     <div class="row">
