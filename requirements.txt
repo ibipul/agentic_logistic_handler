@@ -1,0 +1,5 @@
+google-adk
+pulp>=3.0
+fastapi
+uvicorn
+pytest

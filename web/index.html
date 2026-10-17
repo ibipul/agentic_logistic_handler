@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logistics Agent</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6677; --line: #e1e4ea;
+    --accent: #2f6fde; --accent-soft: #e8f0fd; --ok: #1f8a4c; --ok-soft: #e5f5ec;
+    --warn: #b25e09; --warn-soft: #fdf1e3; --bad: #c0362c; --bad-soft: #fbe9e7;
+    --code: #f1f3f6; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1a1e26; --text: #e4e7ec; --muted: #9aa3b2; --line: #2b313c;
+      --accent: #6d9ff0; --accent-soft: #1d2a40; --ok: #5cc98a; --ok-soft: #173024;
+      --warn: #e9a352; --warn-soft: #34261a; --bad: #ef7b70; --bad-soft: #3a1f1d; --code: #222733;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+  header h1 { margin: 0 0 4px; font-size: 22px; }
+  header p { margin: 0 0 20px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+  .num { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; align-items: center; justify-content: center;
+         background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
+  .chip:hover { border-color: var(--accent); }
+  textarea { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+             background: var(--bg); color: var(--text); font: 14px/1.5 var(--mono); }
+  .row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button.primary:disabled { opacity: .55; cursor: default; }
+  button.link { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 14px; padding: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .placeholder { color: var(--muted); font-style: italic; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  .totals td, .totals th { font-weight: 600; }
+  .closed { color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .b-ok { background: var(--ok-soft); color: var(--ok); } .b-warn { background: var(--warn-soft); color: var(--warn); }
+  .b-bad { background: var(--bad-soft); color: var(--bad); } .b-info { background: var(--accent-soft); color: var(--accent); }
+  .lp { background: var(--code); border-radius: 8px; padding: 12px 14px; font: 13px/1.6 var(--mono); overflow-x: auto; white-space: pre; margin-top: 12px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  ol.steps { list-style: none; margin: 0; padding: 0; }
+  ol.steps li { border-left: 2px solid var(--line); padding: 0 0 14px 18px; position: relative; }
+  ol.steps li::before { content: ""; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); }
+  ol.steps li.triage::before { border-color: var(--warn); background: var(--warn); }
+  ol.steps li.agent::before { border-color: var(--muted); }
+  ol.steps li.pending::before { animation: pulse 1s infinite alternate; }
+  @keyframes pulse { to { background: var(--accent); } }
+  .step-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .step-head code { font: 600 13px var(--mono); }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  pre.json { background: var(--code); border-radius: 6px; padding: 10px; font: 12px/1.5 var(--mono); overflow-x: auto; max-height: 320px; }
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; min-width: 150px; }
+  .stat .v { font-size: 22px; font-weight: 650; }
+  .stat .l { color: var(--muted); font-size: 12px; }
+  .banner { border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+  .banner.warn { background: var(--warn-soft); color: var(--warn); }
+  .banner.bad { background: var(--bad-soft); color: var(--bad); }
+  .banner.ok { background: var(--ok-soft); color: var(--ok); }
+  .explain { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 6px; }
+  .explain table { margin: 8px 0; }
+  h3 { font-size: 14px; margin: 16px 0 8px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Agentic Logistics Handler</h1>
+    <p>Describe warehouses, stores and route costs. A Gemini agent formulates the transportation problem, calls an exact LP solver (PuLP/CBC), and triages shortages.</p>
+  </header>
+
+  <section class="card">
+    <h2>Your question</h2>
+    <div class="chips" id="chips"></div>
+    <textarea id="question" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="run">Run agent</button>
+      <span id="status" class="muted"></span>
+      <span style="flex:1"></span>
+      <span id="session-note" class="muted" hidden>Follow-ups continue this conversation · <button class="link" id="reset">New problem</button></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">1</span>Problem formulation</h2>
+    <div id="formulation"><p class="placeholder">Appears when the agent formulates the problem.</p></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">2</span>Agent steps &amp; tool calls</h2>
+    <ol class="steps" id="steps"><li class="agent"><span class="placeholder">No run yet.</span></li></ol>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">3</span>Result</h2>
+    <div id="result"><p class="placeholder">Appears when the solver finishes.</p></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => (typeof n === "number" ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : esc(n ?? ""));
+const money = (n) => "$" + fmt(n);
+const md = (text) => (window.marked ? marked.parse(text) : `<p style="white-space:pre-wrap">${esc(text)}</p>`);
+
+const TOOL_LABELS = {
+  list_sample_scenarios: "List sample scenarios",
+  load_sample_scenario: "Load sample scenario",
+  formulate_transportation_problem: "Formulate problem",
+  solve_transportation_problem: "Solve (exact LP)",
+  solve_with_shortage_triage: "Shortage triage (self-healing)",
+};
+
+let sessionId = null;
+let samples = [];
+
+async function loadSamples() {
+  try {
+    const res = await fetch("/api/samples");
+    const data = await res.json();
+    samples = data.samples;
+    $("chips").innerHTML = samples.map((s, i) => `<button class="chip" data-i="${i}">${esc(s.label)}</button>`).join("");
+    $("chips").onclick = (e) => { const i = e.target.dataset.i; if (i !== undefined) { $("question").value = samples[i].text; resetSession(); } };
+    $("question").value = samples[0].text;
+    $("status").textContent = `Model: ${data.model}`;
+  } catch (e) {
+    $("status").textContent = "Could not reach the server.";
+  }
+}
+
+function resetSession() {
+  sessionId = null;
+  $("session-note").hidden = true;
+}
+$("reset").onclick = () => { resetSession(); $("question").value = samples[0]?.text || ""; };
+
+function summarize(name, r) {
+  if (!r) return "";
+  if (r.status === "error") return `<span class="badge b-bad">error</span> ${esc(r.message)}`;
+  if (name === "formulate_transportation_problem")
+    return `<span class="badge ${r.balance === "shortage" ? "b-warn" : "b-ok"}">${esc(r.balance)}</span> ${r.variables.length} variables, ${r.supply_constraints.length + r.demand_constraints.length} constraints`;
+  if (name === "solve_transportation_problem") {
+    if (r.status === "optimal") return `<span class="badge b-ok">optimal</span> total cost ${money(r.total_cost)}`;
+    return `<span class="badge b-bad">${esc(r.status)}</span> ${esc(r.message || "")}`;
+  }
+  if (name === "solve_with_shortage_triage")
+    return `<span class="badge ${r.status === "partial" ? "b-warn" : "b-ok"}">${esc(r.status)}</span> ${esc(r.message)} Cost ${money(r.total_cost)}`;
+  if (name === "list_sample_scenarios") return `${r.scenarios.length} scenarios`;
+  if (name === "load_sample_scenario") return `<span class="badge b-info">${esc(r.name)}</span>`;
+  return "";
+}
+
+function addStep(cls, html) {
+  const li = document.createElement("li");
+  li.className = cls;
+  li.innerHTML = html;
+  $("steps").appendChild(li);
+  return li;
+}
+
+function renderFormulation(args, f) {
+  if (f.status === "error") {
+    $("formulation").innerHTML = `<div class="banner bad">${esc(f.message)}</div>`;
+    return;
+  }
+  const stores = f.destinations, whs = f.sources;
+  const head = `<tr><th>Cost $/unit</th>${stores.map((s) => `<th>${esc(s)}</th>`).join("")}<th>Supply</th></tr>`;
+  const rows = whs.map((w) => `<tr><th>${esc(w)}</th>${stores.map((s) => {
+      const c = args.costs?.[w]?.[s];
+      return c === undefined ? `<td class="closed" title="closed route">—</td>` : `<td>${fmt(Number(c))}</td>`;
+    }).join("")}<td><b>${fmt(Number(args.supplies[w]))}</b></td></tr>`).join("");
+  const dem = `<tr class="totals"><th>Demand</th>${stores.map((s) => `<td>${fmt(Number(args.demands[s]))}</td>`).join("")}<td></td></tr>`;
+  const cls = f.balance === "shortage" ? "b-warn" : f.balance === "surplus" ? "b-info" : "b-ok";
+  const lp = [
+    wrapObjective(f.objective),
+    "",
+    "subject to",
+    "  supply (each warehouse ships at most what it has):",
+    ...f.supply_constraints.map((c) => "    " + c),
+    "  demand (each store gets at least what it needs):",
+    ...f.demand_constraints.map((c) => "    " + c),
+    "  " + f.non_negativity,
+  ].join("\n");
+  $("formulation").innerHTML = `
+    <div class="scroll"><table><thead>${head}</thead><tbody>${rows}${dem}</tbody></table></div>
+    <div class="row"><span class="badge ${cls}">${esc(f.balance)}</span>
+      <span class="muted">Total supply ${fmt(f.total_supply)} · total demand ${fmt(f.total_demand)} — ${esc(f.note)}</span></div>
+    ${f.closed_routes.length ? `<p class="muted">Closed routes (no variable created): ${f.closed_routes.map(esc).join(", ")}</p>` : ""}
+    <div class="lp">${esc(lp)}</div>`;
+}
+
+function wrapObjective(obj) {
+  const terms = obj.replace(/^minimize /, "").split(" + ");
+  const lines = [];
+  for (let i = 0; i < terms.length; i += 3) lines.push(terms.slice(i, i + 3).join(" + "));
+  return "minimize   " + lines.join("\n         + ");
+}
+
+function shipmentsTable(r) {
+  const rows = r.shipments.map((s) => `<tr><td>${esc(s.from)} → ${esc(s.to)}</td><td>${fmt(s.units)}</td><td>${money(s.unit_cost)}</td><td>${money(s.route_cost)}</td></tr>`).join("");
+  return `<div class="scroll"><table><thead><tr><th>Route</th><th>Units</th><th>$/unit</th><th>Cost</th></tr></thead>
+    <tbody>${rows}<tr class="totals"><th>Total</th><td>${fmt(r.shipments.reduce((a, s) => a + s.units, 0))}</td><td></td><td>${money(r.total_cost)}</td></tr></tbody></table></div>`;
+}
+
+function unusedLine(r) {
+  const left = Object.entries(r.unused_supply || {}).filter(([, v]) => v > 1e-6);
+  return left.length ? `<p class="muted">Unused supply: ${left.map(([k, v]) => `${esc(k)} ${fmt(v)}`).join(", ")}</p>` : "";
+}
+
+function renderResult(state) {
+  const parts = [];
+  const { solve, triage } = state;
+  if (solve && solve.status === "infeasible") {
+    parts.push(`<div class="banner bad"><b>Standard problem has no solution.</b> ${esc(solve.message)}</div>`);
+  }
+  if (triage && triage.status !== "error") {
+    const short = triage.stores_short;
+    if (short.length) {
+      parts.push(`<div class="banner warn"><b>Triage:</b> ${short.length} of ${short.length + triage.stores_fully_served.length} stores cannot be fully served${
+        triage.stores_not_served_at_all.length ? ` (${triage.stores_not_served_at_all.map(esc).join(", ")} gets nothing)` : ""}. ${fmt(triage.units_delivered)} of ${fmt(triage.total_demand)} units delivered.</div>`);
+    }
+    parts.push(`<div class="stat-row">
+      <div class="stat"><div class="v">${money(triage.total_cost)}</div><div class="l">Shipping cost</div></div>
+      <div class="stat"><div class="v">${fmt(triage.units_delivered)}</div><div class="l">Units delivered</div></div>
+      <div class="stat"><div class="v">${fmt(triage.total_shortfall)}</div><div class="l">Units short</div></div>
+      <div class="stat"><div class="v">${triage.stores_fully_served.length}/${triage.stores_fully_served.length + short.length}</div><div class="l">Stores fully served</div></div></div>`);
+    if (short.length) {
+      parts.push(`<h3>Stores left short</h3><div class="scroll"><table><thead><tr><th>Store</th><th>Needs</th><th>Gets</th><th>Short</th><th>Served</th></tr></thead><tbody>${
+        short.map((s) => `<tr><td>${esc(s.store)}</td><td>${fmt(s.demand)}</td><td>${fmt(s.delivered)}</td><td>${fmt(s.short)}</td><td>${fmt(s.served_pct)}%</td></tr>`).join("")}</tbody></table></div>`);
+    }
+    parts.push(`<h3>Shipping plan</h3>${shipmentsTable(triage)}${unusedLine(triage)}`);
+  } else if (solve && solve.status === "optimal") {
+    parts.push(`<div class="stat-row">
+      <div class="stat"><div class="v">${money(solve.total_cost)}</div><div class="l">Minimum total cost</div></div>
+      <div class="stat"><div class="v">${fmt(solve.total_demand)}</div><div class="l">Units delivered</div></div>
+      <div class="stat"><div class="v">${solve.shipments.length}</div><div class="l">Routes used</div></div></div>
+      <h3>Shipping plan</h3>${shipmentsTable(solve)}${unusedLine(solve)}`);
+  } else if (solve && solve.status !== "infeasible") {
+    parts.push(`<div class="banner bad">${esc(solve.message || solve.status)}</div>`);
+  }
+  if (state.finalText) parts.push(`<div class="explain"><h3>Agent's explanation</h3>${md(state.finalText)}</div>`);
+  if (state.error) parts.push(`<div class="banner bad">${esc(state.error)}</div>`);
+  $("result").innerHTML = parts.length ? parts.join("") : `<p class="placeholder">The agent did not call the solver.</p>`;
+}
+
+async function run() {
+  const question = $("question").value.trim();
+  if (!question) return;
+  $("run").disabled = true;
+  $("status").innerHTML = `<span class="spinner"></span> Agent is working…`;
+  $("steps").innerHTML = "";
+  $("formulation").innerHTML = `<p class="placeholder">Waiting for the agent…</p>`;
+  $("result").innerHTML = `<p class="placeholder">Waiting for the solver…</p>`;
+  addStep("agent", `<div class="step-head"><b>You</b></div><div class="muted" style="white-space:pre-wrap">${esc(question)}</div>`);
+
+  const state = { solve: null, triage: null, finalText: "", error: null };
+  const pending = {};
+  let n = 0;
+
+  const handle = (ev) => {
+    if (ev.type === "session") {
+      sessionId = ev.session_id;
+    } else if (ev.type === "tool_call") {
+      n += 1;
+      const cls = ev.name === "solve_with_shortage_triage" ? "triage pending" : "pending";
+      pending[ev.id || ev.name] = addStep(cls, `<div class="step-head"><span class="muted">#${n}</span><b>${esc(TOOL_LABELS[ev.name] || ev.name)}</b><code>${esc(ev.name)}()</code></div>
+        <div class="sum"><span class="spinner"></span></div>
+        <details><summary>Arguments</summary><pre class="json">${esc(JSON.stringify(ev.args, null, 2))}</pre></details>`);
+      pending[ev.id || ev.name].args = ev.args;
+    } else if (ev.type === "tool_result") {
+      const li = pending[ev.id || ev.name];
+      const r = ev.response;
+      if (li) {
+        li.classList.remove("pending");
+        li.querySelector(".sum").innerHTML = summarize(ev.name, r);
+        li.insertAdjacentHTML("beforeend", `<details><summary>Response</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>`);
+      }
+      if (ev.name === "formulate_transportation_problem") renderFormulation(li?.args || {}, r);
+      if (ev.name === "solve_transportation_problem") { state.solve = r; state.triage = null; renderResult(state); }
+      if (ev.name === "solve_with_shortage_triage") { state.triage = r; renderResult(state); }
+    } else if (ev.type === "text") {
+      if (ev.final) { state.finalText = ev.text; renderResult(state); }
+      else addStep("agent", `<div class="step-head"><b>Agent</b></div><div>${md(ev.text)}</div>`);
+    } else if (ev.type === "error") {
+      state.error = ev.message;
+      addStep("agent", `<div class="banner bad">${esc(ev.message)}</div>`);
+      renderResult(state);
+    }
+  };
+
+  try {
+    const res = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, session_id: sessionId }) });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (line) handle(JSON.parse(line));
+      }
+    }
+    if (!state.solve && !state.triage && !state.error) renderResult(state);
+    if (!$("formulation").querySelector("table") && !$("formulation").querySelector(".banner"))
+      $("formulation").innerHTML = `<p class="placeholder">The agent did not formulate a problem this turn.</p>`;
+    $("status").textContent = "Done.";
+    $("session-note").hidden = false;
+    $("question").value = "";
+    $("question").placeholder = "Ask a follow-up, e.g. “What if Denver gets 200 more units?”";
+  } catch (e) {
+    $("status").textContent = "Request failed: " + e.message;
+  } finally {
+    $("run").disabled = false;
+  }
+}
+
+$("run").onclick = run;
+$("question").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
+loadSamples();
+</script>
+</body>
+</html>
