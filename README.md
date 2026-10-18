@@ -6,15 +6,6 @@ You describe what needs to move where: warehouses and stores, plants and distrib
 
 When the problem has no solution as stated (not enough stock, a lane that can't carry enough, too few vehicles), the agent says why and runs a **triage** step: it finds the best partial plan and tells you exactly who is left short and by how much.
 
-### Problem types
-
-| Type | Use it when | Example |
-|---|---|---|
-| **Transportation** | Direct source → destination shipping | 3 warehouses → 4 stores |
-| **Minimum-cost flow** | Goods pass through hubs, or lanes have limits | 2 plants → 2 DCs → 3 cities |
-| **Multi-product flow** | Several products share lanes and capacity | Frozen + dry on shared trucks |
-| **Vehicle routing** | Vehicles visit customers in order from a depot | 3 vans, 8 customers |
-
 ### How it works
 
 ```mermaid
