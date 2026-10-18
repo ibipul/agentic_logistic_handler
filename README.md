@@ -8,25 +8,32 @@ When the problem has no solution as stated (not enough stock, a lane that can't 
 
 ### Problem types
 
-| Type | Use it when | Example sample |
+| Type | Use it when | Example |
 |---|---|---|
-| **Transportation** | One product goes straight from sources to destinations at a cost per unit | 3 warehouses supply 4 stores |
-| **Minimum-cost flow** (transshipment) | One product passes through hubs (distribution centers, cross-docks) and/or lanes have capacity limits | 2 plants → 2 DCs → 3 cities |
-| **Multi-product flow** | Several products share the same lanes; a lane's capacity limits all of them together; some lanes carry only some products | Frozen and dry goods on shared trucks |
-| **Vehicle routing** | Vehicles leave one depot, visit customers in order and come back, within a load limit (up to 15 customers) | 3 vans, 8 customers |
+| **Transportation** | Direct source → destination shipping | 3 warehouses → 4 stores |
+| **Minimum-cost flow** | Goods pass through hubs, or lanes have limits | 2 plants → 2 DCs → 3 cities |
+| **Multi-product flow** | Several products share lanes and capacity | Frozen + dry on shared trucks |
+| **Vehicle routing** | Vehicles visit customers in order from a depot | 3 vans, 8 customers |
 
 ### How it works
 
 ```mermaid
 flowchart LR
-    Q[Question in<br/>plain language] --> I[Agent identifies<br/>the problem type]
+    Q[Question in<br/>plain language] --> I[Identify<br/>problem type]
+    I --> P[Locate places<br/>OpenStreetMap]
     I --> F[Formulate<br/>the model]
+    P --> F
     F --> S[Exact solve<br/>PuLP / CBC]
-    S -->|solvable| R[Plan + cost<br/>+ diagram / map<br/>+ explanation]
-    S -->|no solution| T[Triage:<br/>best partial plan,<br/>who is short]
+    S -->|solvable| R[Plan + cost<br/>+ explanation]
+    S -->|no solution| T[Triage:<br/>best partial plan]
     T --> R
+    R --> V[Visualize]
+    V --> D[Diagram<br/>Cytoscape.js]
+    V --> M[Map<br/>Leaflet + OSM]
     R -->|what-if follow-up| F
 ```
+
+Place lookup runs only when the problem names real places; it enables the map view.
 
 The Gemini agent handles the conversation, picks the problem type and decides which tool to call; Python tools do all the math. Every number in an answer comes from the user or a tool.
 
@@ -97,44 +104,23 @@ One question takes about 4-7 model calls (identify, locate places, formulate, so
 
 ## The problem types in detail
 
-All four are solved exactly by PuLP + CBC. Each type has three tools: **formulate** (check the data and write out the model, no solving), **solve**, and **triage**.
+Each type has three tools: **formulate** (check data, write out the model), **solve** (exact, PuLP + CBC) and **triage**.
 
-### Transportation
+| Type | Data | No solution when | Triage reports |
+|---|---|---|---|
+| **Transportation** | Supplies, demands, cost per route | Supply < demand | Stores left short |
+| **Minimum-cost flow** | Supplies, demands, lanes (cost, optional capacity); places only in lanes are hubs | Supply short, or lanes can't carry it | Destinations short, full lanes |
+| **Multi-product flow** | Supplies and demands per product; lanes with shared capacity, optional per-product cost or product limits | A product is short, or shared lanes are full | Product/destination pairs short |
+| **Vehicle routing** | Depot, customer demands (≤ 15), fleet size and capacity, coordinates or distances | Fleet too small, or an order exceeds a vehicle | Customers left out, and why |
 
-- **Data:** supply at each source, demand at each destination, cost per unit on each open route.
-- **Model:** one variable per open route (units shipped, ≥ 0). Minimize total cost, subject to: each source ships at most its supply; each destination gets at least its demand.
-- **No solution when:** total supply is below total demand. That's caught from the totals, before calling the solver.
-- **Triage:** every undelivered unit carries a penalty larger than any possible rerouting saving, so the solver first delivers every unit it can, then picks the cheapest way to do it.
-
-### Minimum-cost flow (transshipment)
-
-- **Data:** supplies, demands, and a list of lanes: `{"from", "to", "cost", "capacity"?}`. Places that appear only in lanes are **hubs**: what flows in must flow out.
-- **Model:** one variable per lane, between 0 and the lane's capacity. Flow balance at every place: out − in ≤ supply − demand; at hubs out − in = 0.
-- **Covers the transportation problem** (the tests check it gives the same $5,700), plus hubs and lane limits.
-- **No solution when:** there isn't enough supply (reason `shortage`), or there is, but the lanes can't carry it (reason `network`: a capacity limit or a missing link). The second case is the interesting one: the totals look fine, so the agent needs the solver to find out.
-- **Triage:** same penalty idea. It reports which destinations are short and which lanes are full (the bottlenecks that caused it).
-- **Results include:** units through each hub, and which lanes are at capacity.
-
-### Multi-product flow
-
-- **Data:** supplies and demands per product (`supplies[product][place]`), and lanes with a per-unit `cost`, optional per-product `product_costs`, an optional shared `capacity`, and an optional list of `products` the lane may carry.
-- **Model:** one variable per product per lane it may carry. Flow balance per product at every place; on each lane, the sum over all products ≤ capacity.
-- **No solution when:** some product is short overall, or the shared lanes can't carry everything.
-- **Triage:** reports which destination/product pairs are short. It cuts whatever is most expensive to deliver, which may not match business priorities; the agent says so.
-
-### Vehicle routing (capacitated)
-
-- **Data:** depot, demand per customer (up to 15), number of vehicles, vehicle capacity, and either coordinates (x, y in km, or latitude/longitude) or a distance table. Optional cost per km and fixed cost per vehicle used.
-- **Model** (mixed-integer): a yes/no variable for each pair of places (does a vehicle drive straight from i to j?). Each customer is entered and left exactly once; at most K vehicles leave the depot and all come back. A load variable per customer enforces the capacity and rules out loops that skip the depot.
-- **Exact but slow to grow:** fine for a demo-sized fleet. CBC gets a 30-second limit; if it stops early the result says the plan is the best found, not proven optimal.
-- **No solution when:** total demand exceeds the fleet's capacity, an order is bigger than a vehicle, or the orders can't be packed into the vehicles.
-- **Triage:** each customer becomes optional, with a penalty per undelivered unit. The solver serves as much demand as possible, then minimizes driving. Orders bigger than a vehicle are reported separately.
+- **Triage** puts a penalty on every undelivered unit that outweighs any rerouting saving, so the solver delivers as much as possible, then minimizes cost. Shortfalls land on whatever is most expensive to serve.
+- **Vehicle routing** is a mixed-integer model with a 30-second solver limit; results say whether the plan is proven optimal.
 
 ---
 
 ## Seeing the plan: diagram and map
 
-Every formulate, solve and triage result includes a small network description (places with roles, lanes with units and capacity, or vehicle routes). The page draws it two ways, using free open-source libraries loaded from a CDN:
+Every solve and triage result includes a small network description (places with roles, lanes with units and capacity, or vehicle routes). The **Result** section draws it two ways, using free open-source libraries loaded from a CDN:
 
 - **Diagram** ([Cytoscape.js](https://js.cytoscape.org/), MIT license): sources on the left, hubs in the middle (diamonds), destinations on the right. Line width = units shipped, orange = lane at full capacity, dashed = unused lane. Vehicle routes are drawn at their coordinates, one color per vehicle; customers left out by triage are red.
 - **Map** ([Leaflet](https://leafletjs.com/), BSD license, with [OpenStreetMap](https://www.openstreetmap.org/copyright) tiles): the same network over a real map.

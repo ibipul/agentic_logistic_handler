@@ -514,13 +514,10 @@ function renderFormulation() {
     else {
       parts.push(renderBlocks(formulate.display));
       if (formulate.model) parts.push(`<div class="lp">${esc(modelText(formulate.model))}</div>`);
-      parts.push(`<div class="net-slot"></div>`);
     }
   }
   if (!parts.length) return;
   $("formulation").innerHTML = parts.join("");
-  const slot = $("formulation").querySelector(".net-slot");
-  if (slot && formulate?.display?.network) mountNetwork(slot, formulate.display.network);
 }
 
 function renderResult() {
