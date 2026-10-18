@@ -1,4 +1,4 @@
-# Agentic Logistic Handler: Transportation Problem
+# Agentic Logistic Handler
 
 An agentic twist on the classical transportation problem.
 
