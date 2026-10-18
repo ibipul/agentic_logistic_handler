@@ -488,18 +488,39 @@ function drawMap(canvas, net) {
     const line = L.polyline([a, b], { color: st.color, weight: st.width, opacity: e.used ? 0.85 : 0.5, dashArray: st.dashed ? "5 6" : null }).addTo(map);
     if (e.label && (e.used || net.kind === "routes")) line.bindTooltip(`${esc(e.from)} → ${esc(e.to)}: ${esc(e.label)}`, { sticky: true });
   }
+  const labelled = [];
   for (const n of net.nodes) {
     const g = geoOf(n);
     if (!g) continue;
     pts.push(g);
     const marker = L.circleMarker(g, { radius: n.role === "depot" || n.role === "hub" ? 9 : 7, color: "#fff", weight: 2,
                                        fillColor: roleColor(n.role), fillOpacity: 1 }).addTo(map);
-    // Short permanent name label; the full label (supply, demand) shows on hover.
-    marker.bindTooltip(esc(n.id), { permanent: net.nodes.length <= 14, direction: "right", offset: [8, 0] });
+    // Short permanent name label; the full label (supply, demand) shows on click.
+    marker.bindTooltip(esc(n.id), { permanent: true, direction: "right", offset: [8, 0] });
     marker.bindPopup(`<div style="white-space:pre">${esc(n.label || n.id)}</div>`);
+    labelled.push({ marker, first: n.role === "depot" || n.role === "hub" });
   }
+  // Hide name labels that would overlap one already shown (depots and hubs win); hovering a point shows its name.
+  const declutter = () => {
+    const shown = [];
+    const ordered = [...labelled.filter((l) => l.first), ...labelled.filter((l) => !l.first)];
+    for (const { marker } of ordered) {
+      const el = marker.getTooltip()?.getElement();
+      if (!el) continue;
+      el.style.visibility = "";
+      const r = el.getBoundingClientRect();
+      const hit = shown.some((s) => r.left < s.right && r.right > s.left && r.top < s.bottom && r.bottom > s.top);
+      if (hit) el.style.visibility = "hidden";
+      else shown.push(r);
+    }
+  };
+  for (const { marker } of labelled) {
+    marker.on("mouseover", () => { const el = marker.getTooltip()?.getElement(); if (el) el.style.visibility = ""; });
+    marker.on("mouseout", declutter);
+  }
+  map.on("zoomend moveend", declutter);
   // Size the map to its container first, then fit the places, or Leaflet fits against a zero-size box.
-  const fit = () => { map.invalidateSize(); if (pts.length) map.fitBounds(pts, { padding: [50, 50], maxZoom: 12 }); };
+  const fit = () => { map.invalidateSize(); if (pts.length) map.fitBounds(pts, { padding: [50, 50], maxZoom: 12 }); declutter(); };
   fit();
   setTimeout(fit, 50);
   return () => map.remove();
