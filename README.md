@@ -235,7 +235,7 @@ and gets back (abridged; every result also carries a `display` block for the pag
 ```
 logistic_handler/
 ├── README.md
-├── PLAN.md                     # original build plan (transportation only)
+├── PLAN.md                     # build plan: models, tool contracts, tests, acceptance criteria
 ├── requirements.txt
 ├── run.sh                      # one-command launcher for the web UI
 ├── logistics_agent/            # the ADK agent package
