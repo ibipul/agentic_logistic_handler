@@ -2,3 +2,9 @@
 __pycache__/
 .pytest_cache/
 .DS_Store
+
+# Secrets: API keys live in .env files, which must never be committed.
+# Copy logistics_agent/.env.example to logistics_agent/.env and add your key there.
+.env
+.env.*
+!.env.example

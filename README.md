@@ -20,13 +20,31 @@ flowchart LR
 
 The Gemini agent handles the conversation and decides which tool to call; Python tools do all the math. Every number in an answer comes from the user or a tool.
 
-## Quick start (judges)
+## Quick start
 
-Needs Python 3.10+ and internet access. A Gemini API key is already included in `logistics_agent/.env`.
+Needs Python 3.10+, internet access and a free Gemini API key.
 
 ```bash
-git clone git@github.com:ibipul/agentic_logistic_handler.git
+git clone https://github.com/ibipul/agentic_logistic_handler.git
 cd agentic_logistic_handler
+```
+
+> [!IMPORTANT]
+> **Add your Gemini API key before the first run.** The repo doesn't include one.
+>
+> 1. Get a free key at https://aistudio.google.com/apikey (no billing needed).
+> 2. Copy the template: `cp logistics_agent/.env.example logistics_agent/.env`
+> 3. Open `logistics_agent/.env` and replace `PASTE_YOUR_AI_STUDIO_KEY_HERE` with your key:
+>    ```
+>    GOOGLE_GENAI_USE_VERTEXAI=FALSE
+>    GOOGLE_API_KEY=AIza...your-key...
+>    ```
+>
+> `logistics_agent/.env` is listed in `.gitignore`, so git won't commit your key. Don't put the key in `.env.example` or anywhere else that's tracked.
+
+Then start the app:
+
+```bash
 ./run.sh
 ```
 
@@ -288,8 +306,8 @@ logistic_handler/
 │   ├── agent.py            # defines root_agent: model, instructions, tools
 │   ├── tools.py            # sample-data tools, formulation, PuLP solver, shortage triage
 │   ├── scenarios.py        # sample scenarios
-│   ├── .env                # Gemini API key (committed on purpose; the repo is private)
-│   └── .env.example        # template for using your own key
+│   ├── .env                # your Gemini API key (you create it; ignored by git)
+│   └── .env.example        # template: copy to .env and add your key
 ├── web/
 │   ├── server.py           # FastAPI app: runs the agent and streams its steps to the page
 │   └── index.html          # the page: question, formulation, tool calls, result
@@ -308,7 +326,7 @@ logistic_handler/
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
-3. **API key:** `logistics_agent/.env` already holds a Gemini key, so the repo runs as-is. To use your own, get one at https://aistudio.google.com/apikey (free tier, no billing needed) and replace `GOOGLE_API_KEY` in that file.
+3. **API key:** copy `logistics_agent/.env.example` to `logistics_agent/.env` and set `GOOGLE_API_KEY` to your key (see the box under [Quick start](#quick-start)). `run.sh` stops with a message if this file is missing.
 
 Free-tier keys have per-minute and per-day request limits. If you see `429 RESOURCE_EXHAUSTED`, wait a minute and try again.
 

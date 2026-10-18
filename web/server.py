@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parent.parent
-# override=True: the bundled key wins over any GOOGLE_API_KEY / Vertex settings already in the judge's shell.
+# override=True: the key in logistics_agent/.env wins over any GOOGLE_API_KEY / Vertex settings already in the shell.
 load_dotenv(ROOT / "logistics_agent" / ".env", override=True)
 
 from google.adk.runners import Runner  # noqa: E402  (needs the API key loaded first)
