@@ -56,7 +56,8 @@ Then start the app:
 
 `run.sh` walks through five numbered steps and says what it's doing at each one: check Python, install packages (first run only, usually 2-5 minutes, with pip's progress shown), check the API key, find a free port, start the server. When it prints **● Ready: http://localhost:8080** (or another port, see below), it opens the page in your browser. Keep that terminal open; press Ctrl+C there to stop.
 
-### Quick Troubleshooting
+<details>
+<summary><b>Quick Troubleshooting</b> (click to show)</summary>
 
 **If something goes wrong, `run.sh` says so in the terminal:**
 
@@ -69,6 +70,8 @@ Then start the app:
 | `Python 3.10 or newer is required` | Install a newer Python, or point to one: `PYTHON=/path/to/python3.11 ./run.sh`. |
 
 To choose the port yourself: `PORT=9000 ./run.sh`. If that port is taken, `run.sh` stops and says what is using it.
+
+</details>
 
 ### Problem types and samples
 
@@ -88,19 +91,11 @@ Each type has three tools: **formulate** (check data, write out the model), **so
 - **Triage** puts a penalty on every undelivered unit that outweighs any rerouting saving, so the solver delivers as much as possible, then minimizes cost. Shortfalls land on whatever is most expensive to serve.
 - **Vehicle routing** is a mixed-integer model with a 30-second solver limit; results say whether the plan is proven optimal.
 
-Each result has a **Diagram / Map** toggle (see [Seeing the plan](#seeing-the-plan-diagram-and-map)). Expand **Arguments** / **Response** under any tool call to see exactly what the agent sent to the solver and what came back; each solve step shows the PuLP → CBC call, problem size and solve time.
+Each result has a **Diagram / Map** toggle (details under [Project layout](#project-layout)). Expand **Arguments** / **Response** under any tool call to see exactly what the agent sent to the solver and what came back; each solve step shows the PuLP → CBC call, problem size and solve time.
 
 You can also type your own problem, e.g. *"Factory A has 100 units, B has 150. Store X needs 120, Y needs 130. A→X $4, A→Y $6, B→X $5, B→Y $3."*
 
 One question takes about 4-7 model calls. On the free Gemini tier that can hit the per-minute limit; the agent waits and retries automatically, and the page says so.
-
----
-
-## Seeing the plan: diagram and map
-
-- **Diagram** ([Cytoscape.js](https://js.cytoscape.org/)): line width = units, orange = lane at capacity, dashed = unused; one color per vehicle route.
-- **Map** ([Leaflet](https://leafletjs.com/) + [OpenStreetMap](https://www.openstreetmap.org/copyright)): same network on a real map, for problems with real place names.
-- Coordinates come from OpenStreetMap's [Nominatim](https://nominatim.org/) lookup (`locate_places`); lines are straight, not road routes.
 
 ---
 
@@ -136,6 +131,10 @@ logistic_handler/
 ```
 
 **Adding a problem type:** write `formulate_*`, `solve_*` and `triage_*` functions in `problems/` that return the same `status` / `stage` / `summary` / `display` fields, add an entry to `PROBLEM_TYPES` and the functions to `SOLVER_TOOLS`, and add a sample or two to `samples.py`. The agent instructions, the page and the sample pane pick it up from the registry.
+
+- **Diagram** ([Cytoscape.js](https://js.cytoscape.org/)): line width = units, orange = lane at capacity, dashed = unused; one color per vehicle route.
+- **Map** ([Leaflet](https://leafletjs.com/) + [OpenStreetMap](https://www.openstreetmap.org/copyright)): same network on a real map, for problems with real place names.
+- Coordinates come from OpenStreetMap's [Nominatim](https://nominatim.org/) lookup (`locate_places`); lines are straight, not road routes.
 
 ## Setup
 
