@@ -49,7 +49,7 @@ def test_crossdock_respects_hubs_and_capacities():
             assert lane_total(flows, arc["from"], arc["to"]) <= arc["capacity"] + 1e-6
     for city, need in d["demands"].items():
         assert net_in(flows, city) >= need - 1e-6
-    assert set(result["bottlenecks"]) == {"Reno Plant → Sacramento DC", "Fresno Plant → Bakersfield DC"}
+    assert set(result["bottlenecks"]) == {"Redding Plant → Sacramento DC", "Fresno Plant → Bakersfield DC"}
     assert result["hub_throughput"] == {"Sacramento DC": 350, "Bakersfield DC": 400}
 
 
@@ -106,7 +106,7 @@ def test_two_lines_share_capacity_and_respect_lane_restrictions():
     flows = result["flows"]
     for arc in d["arcs"]:
         assert lane_total(flows, arc["from"], arc["to"]) <= arc["capacity"] + 1e-6
-    assert not any(f["product"] == "Frozen" and f["from"] == "Kansas City" and f["to"] == "Memphis" for f in flows)
+    assert not any(f["product"] == "Frozen" and f["from"] == "Quincy" and f["to"] == "Carbondale" for f in flows)
     for product, needs in d["demands"].items():
         for city, need in needs.items():
             assert net_in(flows, city, product) >= need - 1e-6
@@ -119,8 +119,8 @@ def test_capacity_squeeze_is_infeasible_then_triaged():
     triage = triage_multi_commodity_flow(**d)
     assert triage["status"] == "partial"
     assert triage["total_shortfall"] == 100
-    assert {r["destination"] for r in triage["short"]} == {"Indianapolis"}
-    assert lane_total(triage["flows"], "St. Louis Hub", "Indianapolis") == 150
+    assert {r["destination"] for r in triage["short"]} == {"Champaign"}
+    assert lane_total(triage["flows"], "Springfield Hub", "Champaign") == 150
 
 
 def test_product_shortage_detected_per_product():

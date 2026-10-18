@@ -2,36 +2,38 @@
 
 Each sample has structured `data` (the exact tool arguments) and a plain-language `question` with the same
 numbers, which the web UI drops into the question box. Questions don't name the problem type: the agent has
-to work it out.
+to work it out. Every sample's places are in one US state (named in the question), so place lookups are
+unambiguous and the result fits nicely on the map.
 """
 
 import copy
 
-# ---------------------------------------------------------------- transportation
+# ---------------------------------------------------------------- transportation (Texas)
 
-_RETAIL_COSTS = {
-    "Dallas": {"Phoenix": 8, "Houston": 3, "Miami": 9, "Chicago": 7},
-    "Atlanta": {"Phoenix": 12, "Houston": 6, "Miami": 4, "Chicago": 6},
-    "Denver": {"Phoenix": 5, "Houston": 7, "Miami": 13, "Chicago": 8},
+_TX_COSTS = {
+    "Fort Worth": {"Midland": 8, "Waco": 3, "Corpus Christi": 9, "San Antonio": 7},
+    "Houston": {"Midland": 12, "Waco": 6, "Corpus Christi": 4, "San Antonio": 6},
+    "El Paso": {"Midland": 5, "Waco": 7, "Corpus Christi": 13, "San Antonio": 8},
 }
-_RETAIL_DEMANDS = {"Phoenix": 250, "Houston": 350, "Miami": 400, "Chicago": 200}
-_RETAIL_COST_TEXT = (
+_TX_DEMANDS = {"Midland": 250, "Waco": 350, "Corpus Christi": 400, "San Antonio": 200}
+_TX_STORES_TEXT = "My stores need: Midland 250, Waco 350, Corpus Christi 400, San Antonio 200.\n"
+_TX_COST_TEXT = (
     "Cost per unit:\n"
-    "- Dallas → Phoenix 8, Houston 3, Miami 9, Chicago 7\n"
-    "- Atlanta → Phoenix 12, Houston 6, Miami 4, Chicago 6\n"
-    "- Denver → Phoenix 5, Houston 7, Miami 13, Chicago 8\n"
+    "- Fort Worth → Midland 8, Waco 3, Corpus Christi 9, San Antonio 7\n"
+    "- Houston → Midland 12, Waco 6, Corpus Christi 4, San Antonio 6\n"
+    "- El Paso → Midland 5, Waco 7, Corpus Christi 13, San Antonio 8\n"
 )
 
-# ---------------------------------------------------------------- minimum-cost flow (transshipment)
+# ---------------------------------------------------------------- minimum-cost flow (California)
 
-_CA_SUPPLIES = {"Reno Plant": 400, "Fresno Plant": 300}
+_CA_SUPPLIES = {"Redding Plant": 400, "Fresno Plant": 300}
 _CA_DEMANDS = {"San Francisco": 200, "Los Angeles": 250, "San Diego": 150}
 
 
 def _ca_arcs(sd_cap=None, bak_la_cap=None):
     return [
-        {"from": "Reno Plant", "to": "Sacramento DC", "cost": 2, "capacity": 350},
-        {"from": "Reno Plant", "to": "Bakersfield DC", "cost": 5},
+        {"from": "Redding Plant", "to": "Sacramento DC", "cost": 2, "capacity": 350},
+        {"from": "Redding Plant", "to": "Bakersfield DC", "cost": 5},
         {"from": "Fresno Plant", "to": "Sacramento DC", "cost": 3},
         {"from": "Fresno Plant", "to": "Bakersfield DC", "cost": 2, "capacity": 250},
         {"from": "Fresno Plant", "to": "Los Angeles", "cost": 7},
@@ -45,8 +47,8 @@ def _ca_arcs(sd_cap=None, bak_la_cap=None):
 
 _CA_LANES_TEXT = (
     "Lanes (cost per unit, capacity if limited):\n"
-    "- Reno Plant → Sacramento DC $2, max 350\n"
-    "- Reno Plant → Bakersfield DC $5\n"
+    "- Redding Plant → Sacramento DC $2, max 350\n"
+    "- Redding Plant → Bakersfield DC $5\n"
     "- Fresno Plant → Sacramento DC $3\n"
     "- Fresno Plant → Bakersfield DC $2, max 250\n"
     "- Fresno Plant → Los Angeles $7 (direct)\n"
@@ -55,60 +57,76 @@ _CA_LANES_TEXT = (
     "- Sacramento DC → Los Angeles $6\n"
 )
 
-# ---------------------------------------------------------------- multi-product flow
+# ---------------------------------------------------------------- multi-product flow (Illinois)
 
-_MW_SUPPLIES = {"Frozen": {"Omaha": 300, "Kansas City": 100}, "Dry": {"Omaha": 200, "Kansas City": 400}}
-_MW_DEMANDS = {
-    "Frozen": {"Chicago": 150, "Memphis": 100, "Indianapolis": 100},
-    "Dry": {"Chicago": 200, "Memphis": 150, "Indianapolis": 150},
+_IL_SUPPLIES = {"Frozen": {"Rockford": 300, "Quincy": 100}, "Dry": {"Rockford": 200, "Quincy": 400}}
+_IL_DEMANDS = {
+    "Frozen": {"Chicago": 150, "Carbondale": 100, "Champaign": 100},
+    "Dry": {"Chicago": 200, "Carbondale": 150, "Champaign": 150},
 }
 
 
-def _mw_arcs(indy_cap=350):
+def _il_arcs(champaign_cap=350):
     return [
-        {"from": "Omaha", "to": "Chicago", "cost": 4, "product_costs": {"Frozen": 6}, "capacity": 300},
-        {"from": "Omaha", "to": "St. Louis Hub", "cost": 3, "product_costs": {"Frozen": 5}, "capacity": 400},
-        {"from": "Kansas City", "to": "St. Louis Hub", "cost": 2, "product_costs": {"Frozen": 3}, "capacity": 500},
-        {"from": "Kansas City", "to": "Memphis", "cost": 5, "capacity": 200, "products": ["Dry"]},
-        {"from": "St. Louis Hub", "to": "Chicago", "cost": 3, "product_costs": {"Frozen": 4}, "capacity": 250},
-        {"from": "St. Louis Hub", "to": "Memphis", "cost": 3, "product_costs": {"Frozen": 4}, "capacity": 300},
-        {"from": "St. Louis Hub", "to": "Indianapolis", "cost": 2, "product_costs": {"Frozen": 3}, "capacity": indy_cap},
+        {"from": "Rockford", "to": "Chicago", "cost": 4, "product_costs": {"Frozen": 6}, "capacity": 300},
+        {"from": "Rockford", "to": "Springfield Hub", "cost": 3, "product_costs": {"Frozen": 5}, "capacity": 400},
+        {"from": "Quincy", "to": "Springfield Hub", "cost": 2, "product_costs": {"Frozen": 3}, "capacity": 500},
+        {"from": "Quincy", "to": "Carbondale", "cost": 5, "capacity": 200, "products": ["Dry"]},
+        {"from": "Springfield Hub", "to": "Chicago", "cost": 3, "product_costs": {"Frozen": 4}, "capacity": 250},
+        {"from": "Springfield Hub", "to": "Carbondale", "cost": 3, "product_costs": {"Frozen": 4}, "capacity": 300},
+        {"from": "Springfield Hub", "to": "Champaign", "cost": 2, "product_costs": {"Frozen": 3},
+         "capacity": champaign_cap},
     ]
 
 
-def _mw_question(indy_cap, ask):
+def _il_question(champaign_cap, ask):
     return (
-        "We move two product lines, Frozen and Dry, from our Omaha and Kansas City plants to Chicago, Memphis and "
-        "Indianapolis. Some freight goes through our St. Louis Hub.\n"
-        "Supply: Omaha has 300 Frozen and 200 Dry; Kansas City has 100 Frozen and 400 Dry.\n"
-        "Needs: Chicago 150 Frozen + 200 Dry; Memphis 100 Frozen + 150 Dry; Indianapolis 100 Frozen + 150 Dry.\n"
+        "We move two product lines, Frozen and Dry, from our Rockford and Quincy plants to Chicago, Carbondale and "
+        "Champaign, all in Illinois. Some freight goes through our Springfield Hub.\n"
+        "Supply: Rockford has 300 Frozen and 200 Dry; Quincy has 100 Frozen and 400 Dry.\n"
+        "Needs: Chicago 150 Frozen + 200 Dry; Carbondale 100 Frozen + 150 Dry; Champaign 100 Frozen + 150 Dry.\n"
         "Lanes (cost per unit Dry / Frozen; truck capacity is shared by both lines):\n"
-        "- Omaha → Chicago $4 / $6, max 300\n"
-        "- Omaha → St. Louis Hub $3 / $5, max 400\n"
-        "- Kansas City → St. Louis Hub $2 / $3, max 500\n"
-        "- Kansas City → Memphis $5, max 200 — dry vans only, no Frozen\n"
-        "- St. Louis Hub → Chicago $3 / $4, max 250\n"
-        "- St. Louis Hub → Memphis $3 / $4, max 300\n"
-        f"- St. Louis Hub → Indianapolis $2 / $3, max {indy_cap}\n" + ask
+        "- Rockford → Chicago $4 / $6, max 300\n"
+        "- Rockford → Springfield Hub $3 / $5, max 400\n"
+        "- Quincy → Springfield Hub $2 / $3, max 500\n"
+        "- Quincy → Carbondale $5, max 200 — dry vans only, no Frozen\n"
+        "- Springfield Hub → Chicago $3 / $4, max 250\n"
+        "- Springfield Hub → Carbondale $3 / $4, max 300\n"
+        f"- Springfield Hub → Champaign $2 / $3, max {champaign_cap}\n" + ask
     )
 
 
-# ---------------------------------------------------------------- vehicle routing
+# ---------------------------------------------------------------- vehicle routing (California, East Bay)
 
-_VAN_DEMANDS = {"Bakery": 30, "Cafe": 25, "Grocery": 40, "Pharmacy": 20, "Deli": 35, "Market": 30, "Kiosk": 15,
-                "Bistro": 25}
-_VAN_LOCATIONS = {"Warehouse": [0, 0], "Bakery": [4, 9], "Cafe": [8, 3], "Grocery": [-6, 7], "Pharmacy": [-9, -2],
-                  "Deli": [3, -8], "Market": [-4, -9], "Kiosk": [10, -4], "Bistro": [7, 10]}
-_VAN_TEXT = (
-    "Our warehouse is at (0, 0) on a km grid. Today's orders, in crates, with each customer's location:\n"
-    "- Bakery (4, 9): 30\n- Cafe (8, 3): 25\n- Grocery (-6, 7): 40\n- Pharmacy (-9, -2): 20\n"
-    "- Deli (3, -8): 35\n- Market (-4, -9): 30\n- Kiosk (10, -4): 15\n- Bistro (7, 10): 25\n"
-)
+# Coordinates from OpenStreetMap Nominatim (rounded); the agent looks them up itself from the place names.
+_EB_LOCATIONS = {
+    "Port of Oakland": [37.7958, -122.2788], "Berkeley": [37.8708, -122.2729], "Albany": [37.8872, -122.2984],
+    "Richmond": [37.9358, -122.3477], "Emeryville": [37.8314, -122.2865], "San Leandro": [37.7249, -122.1561],
+    "Castro Valley": [37.7136, -122.0716], "Hayward": [37.6688, -122.0808], "Lafayette": [37.8858, -122.1180],
+    "Walnut Creek": [37.9021, -122.0619],
+}
+_EB_DEMANDS = {"Berkeley": 45, "Albany": 20, "Richmond": 40, "Emeryville": 30, "San Leandro": 30, "Castro Valley": 20,
+               "Hayward": 45, "Lafayette": 25, "Walnut Creek": 50}
+_EB_SMALL_DEMANDS = {k: v for k, v in _EB_DEMANDS.items() if k != "Emeryville"}
 
 
-def _vans(n):
-    return {"depot": "Warehouse", "demands": _VAN_DEMANDS, "num_vehicles": n, "vehicle_capacity": 100,
-            "locations": _VAN_LOCATIONS, "location_type": "grid", "cost_per_distance": 2}
+def _eb_data(demands, trucks):
+    return {"depot": "Port of Oakland", "demands": demands, "num_vehicles": trucks, "vehicle_capacity": 130,
+            "locations": {n: _EB_LOCATIONS[n] for n in ["Port of Oakland", *demands]}, "location_type": "lat_lon",
+            "cost_per_distance": 1.8}
+
+
+def _eb_question(demands, trucks, intro):
+    orders = "".join(f"- {name}, California: {crates}\n" for name, crates in demands.items())
+    return (
+        "We run a wholesale bakery out of a warehouse at the Port of Oakland in Oakland, California. Our refrigerated "
+        "trucks deliver bread and pastry crates to café and grocery customers across the East Bay, then come back "
+        f"to the port.\n{intro}\nOrders, in crates:\n{orders}"
+        f"We have {trucks} refrigerated trucks, and each holds 130 crates. Driving costs about $1.80 per km. Each "
+        "customer gets one delivery, and no truck can carry more than 130 crates. Plan the delivery routes at the "
+        "lowest driving cost: which stops each truck makes and in what order, how full it is, and each route's "
+        "distance and cost."
+    )
 
 
 SAMPLES = {
@@ -116,38 +134,35 @@ SAMPLES = {
     "us_retail_basic": {
         "problem_type": "transportation",
         "label": "Warehouses → stores",
-        "description": "3 warehouses supply 4 stores; supply equals demand.",
+        "description": "3 Texas warehouses supply 4 stores; supply equals demand.",
         "question": (
-            "I run 3 warehouses: Dallas has 300 units, Atlanta 400, Denver 500. "
-            "My stores need: Phoenix 250, Houston 350, Miami 400, Chicago 200.\n"
-            + _RETAIL_COST_TEXT + "What's the cheapest way to ship?"
+            "I run 3 warehouses in Texas: Fort Worth has 300 units, Houston 400, El Paso 500. "
+            + _TX_STORES_TEXT + _TX_COST_TEXT + "What's the cheapest way to ship?"
         ),
-        "data": {"supplies": {"Dallas": 300, "Atlanta": 400, "Denver": 500}, "demands": _RETAIL_DEMANDS,
-                 "costs": _RETAIL_COSTS},
+        "data": {"supplies": {"Fort Worth": 300, "Houston": 400, "El Paso": 500}, "demands": _TX_DEMANDS,
+                 "costs": _TX_COSTS},
     },
     "us_retail_surplus": {
         "problem_type": "transportation",
         "label": "Surplus stock",
-        "description": "Denver holds 200 more units than the stores need.",
+        "description": "El Paso holds 200 more units than the stores need.",
         "question": (
-            "Dallas has 300 units, Atlanta 400 and Denver 700. "
-            "Stores need: Phoenix 250, Houston 350, Miami 400, Chicago 200.\n"
-            + _RETAIL_COST_TEXT + "Plan the shipments and tell me what's left over."
+            "My Texas warehouses: Fort Worth has 300 units, Houston 400 and El Paso 700. "
+            + _TX_STORES_TEXT + _TX_COST_TEXT + "Plan the shipments and tell me what's left over."
         ),
-        "data": {"supplies": {"Dallas": 300, "Atlanta": 400, "Denver": 700}, "demands": _RETAIL_DEMANDS,
-                 "costs": _RETAIL_COSTS},
+        "data": {"supplies": {"Fort Worth": 300, "Houston": 400, "El Paso": 700}, "demands": _TX_DEMANDS,
+                 "costs": _TX_COSTS},
     },
     "us_retail_shortage": {
         "problem_type": "transportation",
         "label": "Shortage → triage",
-        "description": "Atlanta has only 200 units: 200 short overall.",
+        "description": "Houston has only 200 units: 200 short overall.",
         "question": (
-            "Atlanta only has 200 units this week. Dallas has 300 and Denver 500. "
-            "Stores still need: Phoenix 250, Houston 350, Miami 400, Chicago 200.\n"
-            + _RETAIL_COST_TEXT + "Plan the shipments."
+            "Our Houston warehouse only has 200 units this week. Fort Worth has 300 and El Paso 500, all in Texas. "
+            + _TX_STORES_TEXT + _TX_COST_TEXT + "Plan the shipments."
         ),
-        "data": {"supplies": {"Dallas": 300, "Atlanta": 200, "Denver": 500}, "demands": _RETAIL_DEMANDS,
-                 "costs": _RETAIL_COSTS},
+        "data": {"supplies": {"Fort Worth": 300, "Houston": 200, "El Paso": 500}, "demands": _TX_DEMANDS,
+                 "costs": _TX_COSTS},
     },
     # minimum-cost flow
     "ca_crossdock": {
@@ -155,9 +170,9 @@ SAMPLES = {
         "label": "Plants → DCs → stores",
         "description": "2 plants, 2 distribution centers, 3 cities; some lanes have limits.",
         "question": (
-            "Our Reno Plant makes 400 units and our Fresno Plant 300. San Francisco needs 200, Los Angeles 250 "
-            "and San Diego 150. Most freight goes through our Sacramento DC and Bakersfield DC.\n"
-            + _CA_LANES_TEXT
+            "Our Redding Plant makes 400 units and our Fresno Plant 300. San Francisco needs 200, Los Angeles 250 "
+            "and San Diego 150. Most freight goes through our Sacramento DC and Bakersfield DC. Everything is in "
+            "California.\n" + _CA_LANES_TEXT
             + "- Bakersfield DC → Los Angeles $2\n- Bakersfield DC → San Diego $4\n"
             "Find the cheapest flow."
         ),
@@ -168,9 +183,9 @@ SAMPLES = {
         "label": "Lane bottleneck → triage",
         "description": "Enough stock, but a storm limits the only lane into San Diego.",
         "question": (
-            "A storm limits the Bakersfield DC → San Diego lane to 50 units this week. Everything else is the same: "
-            "Reno Plant has 400 units, Fresno Plant 300; San Francisco needs 200, Los Angeles 250, San Diego 150.\n"
-            + _CA_LANES_TEXT
+            "A storm limits the Bakersfield DC → San Diego lane to 50 units this week. Everything else is the same "
+            "(all in California): Redding Plant has 400 units, Fresno Plant 300; San Francisco needs 200, "
+            "Los Angeles 250, San Diego 150.\n" + _CA_LANES_TEXT
             + "- Bakersfield DC → Los Angeles $2\n- Bakersfield DC → San Diego $4, max 50 (storm)\n"
             "Plan the week."
         ),
@@ -181,32 +196,30 @@ SAMPLES = {
         "problem_type": "multi_commodity_flow",
         "label": "Frozen + dry, shared trucks",
         "description": "2 product lines share lane capacity; one lane can't carry frozen.",
-        "question": _mw_question(350, "What's the cheapest plan for both lines?"),
-        "data": {"supplies": _MW_SUPPLIES, "demands": _MW_DEMANDS, "arcs": _mw_arcs()},
+        "question": _il_question(350, "What's the cheapest plan for both lines?"),
+        "data": {"supplies": _IL_SUPPLIES, "demands": _IL_DEMANDS, "arcs": _il_arcs()},
     },
     "midwest_squeeze": {
         "problem_type": "multi_commodity_flow",
         "label": "Capacity squeeze → triage",
-        "description": "The only lane into Indianapolis drops to 150 for both lines.",
-        "question": _mw_question(150, "The Indianapolis lane is down to 150 because of a bridge closure. Plan both lines."),
-        "data": {"supplies": _MW_SUPPLIES, "demands": _MW_DEMANDS, "arcs": _mw_arcs(indy_cap=150)},
+        "description": "The only lane into Champaign drops to 150 for both lines.",
+        "question": _il_question(150, "The Champaign lane is down to 150 because of a bridge closure. Plan both lines."),
+        "data": {"supplies": _IL_SUPPLIES, "demands": _IL_DEMANDS, "arcs": _il_arcs(champaign_cap=150)},
     },
     # vehicle routing
     "city_vans": {
         "problem_type": "vehicle_routing",
-        "label": "Delivery vans",
-        "description": "3 vans, 8 customers on a km grid.",
-        "question": _VAN_TEXT + "We have 3 vans that hold 100 crates each, and driving costs $2 per km. "
-                                "Plan the delivery routes.",
-        "data": _vans(3),
+        "label": "Bakery delivery trucks",
+        "description": "3 trucks, 9 East Bay customers.",
+        "question": _eb_question(_EB_DEMANDS, 3, "Tomorrow's run:"),
+        "data": _eb_data(_EB_DEMANDS, 3),
     },
     "city_vans_short": {
         "problem_type": "vehicle_routing",
-        "label": "Van out of service → triage",
-        "description": "Only 2 vans for 220 crates of orders.",
-        "question": _VAN_TEXT + "One van is in the shop, so only 2 vans (100 crates each) are running. Driving "
-                                "costs $2 per km. Plan today's routes.",
-        "data": _vans(2),
+        "label": "Truck in the shop → triage",
+        "description": "Only 2 trucks for 275 crates of orders.",
+        "question": _eb_question(_EB_SMALL_DEMANDS, 2, "Saturday's run is smaller, but one truck is in the shop:"),
+        "data": _eb_data(_EB_SMALL_DEMANDS, 2),
     },
 }
 
