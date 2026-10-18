@@ -58,6 +58,8 @@ Then start the app:
 
 `run.sh` walks through five numbered steps and says what it's doing at each one: check Python, install packages (first run only, usually 2-5 minutes, with pip's progress shown), check the API key, find a free port, start the server. When it prints **● Ready: http://localhost:8080** (or another port, see below), it opens the page in your browser. Keep that terminal open; press Ctrl+C there to stop.
 
+### Quick Troubleshooting
+
 **If something goes wrong, `run.sh` says so in the terminal:**
 
 | You see | What it means / what to do |
