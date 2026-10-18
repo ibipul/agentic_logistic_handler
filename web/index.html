@@ -96,6 +96,24 @@
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* how-it-works flow */
+  .flow-steps { display: flex; flex-wrap: wrap; gap: 10px 30px; list-style: none; margin: 0 0 10px; padding: 0; }
+  .flow-steps li { position: relative; flex: 1 1 130px; border: 1px solid var(--line); border-left: 4px solid var(--accent);
+                   background: var(--bg); border-radius: 8px; padding: 8px 12px; }
+  .flow-steps li:not(:last-child)::after { content: "→"; position: absolute; right: -23px; top: 50%; transform: translateY(-50%);
+                                           color: var(--muted); font-size: 18px; }
+  .flow-steps li.f-identify { border-left-color: var(--hub); }
+  .flow-steps li.f-result, .flow-steps li.f-visual { border-left-color: var(--ok); }
+  .flow-steps b { display: block; font-size: 14px; }
+  .flow-steps span { color: var(--muted); font-size: 12px; }
+  .flow-steps .branch { display: block; margin-top: 6px; font-size: 12px; font-style: normal; color: var(--warn);
+                        background: var(--warn-soft); border-radius: 4px; padding: 2px 6px; }
+  @media (max-width: 640px) {
+    .flow-steps { flex-direction: column; gap: 22px; }
+    .flow-steps li { flex: none; }
+    .flow-steps li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -22px; transform: translateX(-50%); }
+  }
+
   /* sample pane */
   aside h2 { font-size: 15px; margin: 0 0 4px; }
   aside .group { margin-top: 14px; }
@@ -130,6 +148,20 @@
       writes the model, solves it exactly with the open-source PuLP/CBC solver, triages problems that have no solution,
       and shows the plan as a network diagram or on a map.</p>
   </header>
+
+  <section class="card" aria-label="How it works">
+    <h2>How it works</h2>
+    <ol class="flow-steps">
+      <li><b>Your question</b><span>plain language</span></li>
+      <li class="f-identify"><b>Identify</b><span>problem type</span></li>
+      <li><b>Formulate</b><span>the model</span></li>
+      <li><b>Exact solve</b><span>PuLP / CBC</span><em class="branch">No solution → automatic triage: best partial plan</em></li>
+      <li class="f-result"><b>Plan + explanation</b><span>cost, tables, why</span></li>
+      <li class="f-visual"><b>Visualize</b><span>Diagram or Map</span></li>
+    </ol>
+    <p class="muted" style="margin:0">What-if follow-ups loop back to <b>Formulate</b>. Real place names are looked up on
+      OpenStreetMap so the result can be shown on a map.</p>
+  </section>
 
   <div class="layout">
     <main>
