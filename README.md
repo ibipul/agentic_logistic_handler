@@ -98,14 +98,9 @@ One question takes about 4-7 model calls. On the free Gemini tier that can hit t
 
 ## Seeing the plan: diagram and map
 
-Every solve and triage result includes a small network description (places with roles, lanes with units and capacity, or vehicle routes). The **Result** section draws it two ways, using free open-source libraries loaded from a CDN:
-
-- **Diagram** ([Cytoscape.js](https://js.cytoscape.org/), MIT license): sources on the left, hubs in the middle (diamonds), destinations on the right. Line width = units shipped, orange = lane at full capacity, dashed = unused lane. Vehicle routes are drawn at their coordinates, one color per vehicle; customers left out by triage are red.
-- **Map** ([Leaflet](https://leafletjs.com/), BSD license, with [OpenStreetMap](https://www.openstreetmap.org/copyright) tiles): the same network over a real map.
-
-The map needs coordinates. When a problem names real places, the agent calls `locate_places`, which looks the names up with OpenStreetMap's free [Nominatim](https://nominatim.org/) service (no key; at most one request per second, as its usage policy asks; results cached). The agent maps each name used in the data to a search text, e.g. `"Sacramento DC" → "Sacramento, California"`. If the lookup fails, the page shows the diagram only. The coordinates are only for drawing, except in vehicle routing with real places and no distances given, where the agent may use them for straight-line distances and says so. They're never used to make up shipping costs.
-
-Map lines are straight segments between places, not road routes.
+- **Diagram** ([Cytoscape.js](https://js.cytoscape.org/)): line width = units, orange = lane at capacity, dashed = unused; one color per vehicle route.
+- **Map** ([Leaflet](https://leafletjs.com/) + [OpenStreetMap](https://www.openstreetmap.org/copyright)): same network on a real map, for problems with real place names.
+- Coordinates come from OpenStreetMap's [Nominatim](https://nominatim.org/) lookup (`locate_places`); lines are straight, not road routes.
 
 ---
 
