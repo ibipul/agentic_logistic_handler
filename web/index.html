@@ -4,36 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Logistics Agent</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='7' cy='16' r='5' fill='%232f6fde'/%3E%3Ccircle cx='25' cy='7' r='5' fill='%231f8a4c'/%3E%3Ccircle cx='25' cy='25' r='5' fill='%231f8a4c'/%3E%3Cpath d='M11 14 21 9M11 18l10 5' stroke='%235d6677' stroke-width='2.5'/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root {
     --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6677; --line: #e1e4ea;
     --accent: #2f6fde; --accent-soft: #e8f0fd; --ok: #1f8a4c; --ok-soft: #e5f5ec;
     --warn: #b25e09; --warn-soft: #fdf1e3; --bad: #c0362c; --bad-soft: #fbe9e7;
-    --code: #f1f3f6; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --hub: #7a4fc9; --code: #f1f3f6; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #12151b; --card: #1a1e26; --text: #e4e7ec; --muted: #9aa3b2; --line: #2b313c;
       --accent: #6d9ff0; --accent-soft: #1d2a40; --ok: #5cc98a; --ok-soft: #173024;
-      --warn: #e9a352; --warn-soft: #34261a; --bad: #ef7b70; --bad-soft: #3a1f1d; --code: #222733;
+      --warn: #e9a352; --warn-soft: #34261a; --bad: #ef7b70; --bad-soft: #3a1f1d; --hub: #b18cf2; --code: #222733;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+  .page { max-width: 1320px; margin: 0 auto; padding: 24px 16px 64px; }
   header h1 { margin: 0 0 4px; font-size: 22px; }
-  header p { margin: 0 0 20px; color: var(--muted); }
+  header p { margin: 0 0 20px; color: var(--muted); max-width: 90ch; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-areas: "main side"; gap: 16px; align-items: start; }
+  .layout > main { grid-area: main; min-width: 0; }
+  .layout > aside { grid-area: side; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "main"; }
+    .layout > aside { position: static; max-height: none; }
+  }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
   .card h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
   .num { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; align-items: center; justify-content: center;
-         background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
-  .intro { margin-bottom: 12px; }
-  .intro p { margin: 0 0 6px; max-width: 78ch; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-  .chip { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
-  .chip:hover { border-color: var(--accent); }
-  textarea { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+         background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; flex: none; }
+  .intro p { margin: 0 0 8px; max-width: 80ch; }
+  .types { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
+  .types li { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--muted); }
+  textarea { width: 100%; min-height: 170px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
              background: var(--bg); color: var(--text); font: 14px/1.5 var(--mono); }
   .row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
   button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -44,7 +53,7 @@
   .scroll { overflow-x: auto; }
   table { border-collapse: collapse; font-size: 14px; }
   th, td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-  th:first-child, td:first-child { text-align: left; }
+  th:first-child, td:first-child, td.text, th.text { text-align: left; }
   thead th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
   .totals td, .totals th { font-weight: 600; }
   .closed { color: var(--muted); }
@@ -52,11 +61,11 @@
   .b-ok { background: var(--ok-soft); color: var(--ok); } .b-warn { background: var(--warn-soft); color: var(--warn); }
   .b-bad { background: var(--bad-soft); color: var(--bad); } .b-info { background: var(--accent-soft); color: var(--accent); }
   .lp { background: var(--code); border-radius: 8px; padding: 12px 14px; font: 13px/1.6 var(--mono); overflow-x: auto; white-space: pre; margin-top: 12px; }
-  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
   ol.steps { list-style: none; margin: 0; padding: 0; }
   ol.steps li { border-left: 2px solid var(--line); padding: 0 0 14px 18px; position: relative; }
   ol.steps li::before { content: ""; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); }
   ol.steps li.triage::before { border-color: var(--warn); background: var(--warn); }
+  ol.steps li.identify::before { border-color: var(--hub); background: var(--hub); }
   ol.steps li.agent::before { border-color: var(--muted); }
   ol.steps li.thought::before { border-color: var(--muted); border-style: dashed; }
   .thought-body { color: var(--muted); font-style: italic; font-size: 14px; border-left: 3px solid var(--line); padding-left: 10px; margin-top: 4px; }
@@ -71,62 +80,101 @@
   summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   pre.json { background: var(--code); border-radius: 6px; padding: 10px; font: 12px/1.5 var(--mono); overflow-x: auto; max-height: 320px; }
   .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; min-width: 150px; }
+  .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; min-width: 140px; }
   .stat .v { font-size: 22px; font-weight: 650; }
   .stat .l { color: var(--muted); font-size: 12px; }
-  .banner { border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+  .banner { border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
   .banner.warn { background: var(--warn-soft); color: var(--warn); }
   .banner.bad { background: var(--bad-soft); color: var(--bad); }
   .banner.ok { background: var(--ok-soft); color: var(--ok); }
+  .banner.info { background: var(--accent-soft); color: var(--accent); }
+  .ptype { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 12px; }
+  .ptype .badge { font-size: 13px; background: color-mix(in srgb, var(--hub) 15%, transparent); color: var(--hub); }
   .explain { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 6px; }
   .explain table { margin: 8px 0; }
   h3 { font-size: 14px; margin: 16px 0 8px; }
+  .tnote { margin: 6px 0 0; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* sample pane */
+  aside h2 { font-size: 15px; margin: 0 0 4px; }
+  aside .group { margin-top: 14px; }
+  aside .group h3 { margin: 0 0 2px; font-size: 13px; }
+  aside .group p { margin: 0 0 6px; }
+  .sample { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+            border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; font: inherit; }
+  .sample:hover { border-color: var(--accent); }
+  .sample.active { border-color: var(--accent); background: var(--accent-soft); }
+  .sample b { display: block; font-size: 14px; }
+  .sample span { color: var(--muted); font-size: 12px; }
+
+  /* network view */
+  .net { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .net-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .seg { border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 3px 12px; font-size: 13px; cursor: pointer; }
+  .seg:first-of-type { border-radius: 6px 0 0 6px; } .seg:last-of-type { border-radius: 0 6px 6px 0; margin-left: -11px; }
+  .seg.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .seg:disabled { opacity: .5; cursor: not-allowed; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  .net-canvas { height: 440px; background: var(--card); }
+  .leaflet-container { font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .leaflet-tooltip.node-tip { white-space: pre; }
 </style>
 </head>
 <body>
-<main>
+<div class="page">
   <header>
     <h1>Agentic Logistics Handler</h1>
-    <p>Describe warehouses, stores and route costs. A Gemini agent formulates the transportation problem, calls an exact LP solver (PuLP/CBC), and triages shortages.</p>
+    <p>Describe a logistics problem in plain language. A Gemini agent works out what kind of optimization problem it is,
+      writes the model, solves it exactly with the open-source PuLP/CBC solver, triages problems that have no solution,
+      and shows the plan as a network diagram or on a map.</p>
   </header>
 
-  <section class="card">
-    <h2>Your question</h2>
-    <div class="intro">
-      <p><b>The transportation problem:</b> warehouses each hold some units, stores each need some units, and every
-        warehouse→store route has a cost per unit. Find how much to ship on each route so every store gets what it
-        needs, no warehouse ships more than it has, and total shipping cost is as low as possible.</p>
-      <p class="muted">Describe in plain language: <b>supply</b> at each warehouse, <b>demand</b> at each store, and the
-        <b>cost per unit</b> for each route. Leave out a route to treat it as closed. If supply falls short of demand, the
-        agent triages: it ships everything it can and tells you which stores will be short.</p>
-    </div>
-    <div class="chips" id="chips"></div>
-    <textarea id="question" spellcheck="false">{{DEFAULT_QUESTION}}</textarea>
-    <div class="row">
-      <button class="primary" id="run">Run agent</button>
-      <span id="status" class="muted"></span>
-      <span style="flex:1"></span>
-      <span id="session-note" class="muted" hidden>Replace the text to ask a follow-up (e.g. “What if Denver gets 200 more units?”) · <button class="link" id="reset">New problem</button></span>
-    </div>
-  </section>
+  <div class="layout">
+    <main>
+      <section class="card">
+        <h2>Your question</h2>
+        <div class="intro">
+          <p>Describe what moves where: supplies, demands, costs per unit, any hubs or lane limits, products, or a
+            fleet of vehicles. The agent picks the problem type itself. If the problem can't be solved as stated
+            (too little stock, a lane bottleneck, not enough vehicles), it says why and finds the best partial plan.</p>
+          <ul class="types" id="types"></ul>
+        </div>
+        <textarea id="question" spellcheck="false">{{DEFAULT_QUESTION}}</textarea>
+        <div class="row">
+          <button class="primary" id="run">Run agent</button>
+          <span id="status" class="muted"></span>
+          <span style="flex:1"></span>
+          <span id="session-note" class="muted" hidden>Replace the text to ask a follow-up (e.g. “What if the Reno lane gets 100 more capacity?”) · <button class="link" id="reset">New problem</button></span>
+        </div>
+      </section>
 
-  <section class="card">
-    <h2><span class="num">1</span>Problem formulation</h2>
-    <div id="formulation"><p class="placeholder">Appears when the agent formulates the problem.</p></div>
-  </section>
+      <section class="card">
+        <h2><span class="num">1</span>Problem type &amp; formulation</h2>
+        <div id="formulation"><p class="placeholder">Appears when the agent identifies and formulates the problem.</p></div>
+      </section>
 
-  <section class="card">
-    <h2><span class="num">2</span>Agent steps &amp; tool calls</h2>
-    <ol class="steps" id="steps"><li class="agent"><span class="placeholder">No run yet.</span></li></ol>
-  </section>
+      <section class="card">
+        <h2><span class="num">2</span>Agent steps &amp; tool calls</h2>
+        <ol class="steps" id="steps"><li class="agent"><span class="placeholder">No run yet.</span></li></ol>
+      </section>
 
-  <section class="card">
-    <h2><span class="num">3</span>Result</h2>
-    <div id="result"><p class="placeholder">Appears when the solver finishes.</p></div>
-  </section>
-</main>
+      <section class="card">
+        <h2><span class="num">3</span>Result</h2>
+        <div id="result"><p class="placeholder">Appears when the solver finishes.</p></div>
+      </section>
+    </main>
+
+    <aside class="card" aria-label="Sample problems">
+      <h2>Sample problems</h2>
+      <p class="muted">Click one to put it in the question box, then press <b>Run agent</b>. The text doesn't name
+        the problem type: the agent works it out.</p>
+      <div id="samples"><p class="placeholder">Loading…</p></div>
+    </aside>
+  </div>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -134,63 +182,112 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : esc(n ?? ""));
 const money = (n) => "$" + fmt(n);
 const md = (text) => (window.marked ? marked.parse(text) : `<p style="white-space:pre-wrap">${esc(text)}</p>`);
-
-const TOOL_LABELS = {
-  list_sample_scenarios: "List sample scenarios",
-  load_sample_scenario: "Load sample scenario",
-  formulate_transportation_problem: "Formulate problem",
-  solve_transportation_problem: "Solve (exact LP via open-source PuLP)",
-  solve_with_shortage_triage: "Shortage triage via PuLP (self-healing)",
-};
-
-// What actually ran inside each tool, so it's clear which steps used the open-source PuLP/CBC solver.
-function engineLine(name, r) {
-  const s = r && r.solver;
-  if (s && s.called)
-    return `⚙ Called <b>${esc(s.library)}</b> → <b>${esc(s.solver)}</b><br><code>${esc(s.call)}</code> · ${s.variables} variables, ${s.constraints} constraints · solver status ${esc(s.solver_status)} · ${fmt(s.solve_seconds)} s`;
-  if (s && !s.called) return `⚙ PuLP not called: ${esc(s.reason)}`;
-  if (name === "formulate_transportation_problem") return "⚙ Python tool: validates the data and writes out the LP model (no solver call)";
-  if (name === "list_sample_scenarios" || name === "load_sample_scenario") return "⚙ Python tool: reads built-in sample data (no solver call)";
-  return "";
-}
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 let sessionId = null;
 let samples = [];
+let problemTypes = {};
+let toolType = {};          // tool name → problem type key
+let places = {};            // place name → {lat, lon}, from locate_places
+let preferredView = "diagram";
+let view = null;            // what the result and formulation sections are showing, for re-rendering
+
+// ---------------------------------------------------------------- samples pane
 
 async function loadSamples() {
   try {
     const res = await fetch("/api/samples");
     const data = await res.json();
     samples = data.samples;
-    $("chips").innerHTML = samples.map((s, i) => `<button class="chip" data-i="${i}">${esc(s.label)}</button>`).join("");
-    $("chips").onclick = (e) => { const i = e.target.dataset.i; if (i !== undefined) { $("question").value = samples[i].text; resetSession(); } };
+    problemTypes = data.problem_types;
+    for (const [key, t] of Object.entries(problemTypes)) for (const name of Object.values(t.tools)) toolType[name] = key;
+    $("types").innerHTML = Object.values(problemTypes).map((t) => `<li title="${esc(t.short)}">${esc(t.label)}</li>`).join("");
+    $("samples").innerHTML = Object.entries(problemTypes).map(([key, t]) => {
+      const items = samples.map((s, i) => [s, i]).filter(([s]) => s.problem_type === key);
+      if (!items.length) return "";
+      return `<div class="group"><h3>${esc(t.label)}</h3><p class="muted">${esc(t.short)}</p>${items.map(([s, i]) =>
+        `<button class="sample" data-i="${i}"><b>${esc(s.label)}</b><span>${esc(s.description)}</span></button>`).join("")}</div>`;
+    }).join("");
+    $("samples").onclick = (e) => {
+      const btn = e.target.closest(".sample");
+      if (!btn) return;
+      pickSample(Number(btn.dataset.i));
+    };
     if (!$("question").value.trim() || $("question").value.includes("{{")) $("question").value = samples[0].text;
+    markActive();
     $("status").textContent = `Model: ${data.model}`;
   } catch (e) {
     $("status").textContent = "Could not reach the server.";
   }
 }
 
+function pickSample(i) {
+  $("question").value = samples[i].text;
+  resetSession();
+  markActive();
+  if (window.matchMedia("(max-width: 960px)").matches) $("question").scrollIntoView({ behavior: "smooth", block: "center" });
+  $("question").focus();
+}
+
+function markActive() {
+  const text = $("question").value;
+  document.querySelectorAll(".sample").forEach((b) => b.classList.toggle("active", samples[b.dataset.i]?.text === text));
+}
+$("question").addEventListener("input", markActive);
+
 function resetSession() {
   sessionId = null;
   $("session-note").hidden = true;
 }
-$("reset").onclick = () => { resetSession(); $("question").value = samples[0]?.text || ""; };
+$("reset").onclick = () => { resetSession(); $("question").value = samples[0]?.text || ""; markActive(); };
+
+// ---------------------------------------------------------------- tool labels and summaries
+
+function typeLabel(name) { return problemTypes[toolType[name]]?.label || ""; }
+
+function toolLabel(name) {
+  const fixed = {
+    identify_problem_type: "Identify problem type",
+    locate_places: "Locate places (OpenStreetMap)",
+    list_sample_problems: "List sample problems",
+    load_sample_problem: "Load sample problem",
+  };
+  if (fixed[name]) return fixed[name];
+  if (name.startsWith("formulate_")) return `Formulate · ${typeLabel(name)}`;
+  if (name.startsWith("solve_")) return `Solve · ${typeLabel(name)} (exact, open-source PuLP)`;
+  if (name.startsWith("triage_")) return `Triage · ${typeLabel(name)} (self-healing)`;
+  return name;
+}
+
+function stageOf(name, r) {
+  return r?.stage || (name.split("_")[0]);
+}
+
+// What actually ran inside each tool, so it's clear which steps used the open-source PuLP/CBC solver.
+function engineLine(name, r) {
+  const s = r && r.solver;
+  if (s && s.called)
+    return `⚙ Called <b>${esc(s.library)}</b> → <b>${esc(s.solver)}</b><br><code>${esc(s.call)}</code> · ${esc(s.model_kind)} · ${s.variables} variables, ${s.constraints} constraints · solver status ${esc(s.solver_status)}${s.proven_optimal ? "" : " (not proven optimal)"} · ${fmt(s.solve_seconds)} s`;
+  if (s && !s.called) return `⚙ PuLP not called: ${esc(s.reason)}`;
+  const stage = stageOf(name, r);
+  if (stage === "formulate") return "⚙ Python tool: validates the data and writes out the model (no solver call)";
+  if (stage === "identify") return "⚙ Python tool: records the type and returns its data checklist and tools (no solver call)";
+  if (stage === "locate") return "⚙ HTTP lookup: OpenStreetMap Nominatim geocoder (open data, no API key)";
+  if (stage === "samples") return "⚙ Python tool: reads built-in sample data (no solver call)";
+  return "";
+}
+
+function badgeClass(status) {
+  if (["ok", "optimal"].includes(status)) return "b-ok";
+  if (["partial", "feasible"].includes(status)) return "b-warn";
+  if (["infeasible", "error", "unsupported"].includes(status)) return "b-bad";
+  return "b-info";
+}
 
 function summarize(name, r) {
   if (!r) return "";
-  if (r.status === "error") return `<span class="badge b-bad">error</span> ${esc(r.message)}`;
-  if (name === "formulate_transportation_problem")
-    return `<span class="badge ${r.balance === "shortage" ? "b-warn" : "b-ok"}">${esc(r.balance)}</span> ${r.variables.length} variables, ${r.supply_constraints.length + r.demand_constraints.length} constraints`;
-  if (name === "solve_transportation_problem") {
-    if (r.status === "optimal") return `<span class="badge b-ok">optimal</span> total cost ${money(r.total_cost)}`;
-    return `<span class="badge b-bad">${esc(r.status)}</span> ${esc(r.message || "")}`;
-  }
-  if (name === "solve_with_shortage_triage")
-    return `<span class="badge ${r.status === "partial" ? "b-warn" : "b-ok"}">${esc(r.status)}</span> ${esc(r.message)} Cost ${money(r.total_cost)}`;
-  if (name === "list_sample_scenarios") return `${r.scenarios.length} scenarios`;
-  if (name === "load_sample_scenario") return `<span class="badge b-info">${esc(r.name)}</span>`;
-  return "";
+  const status = r.status || (r.samples ? "ok" : "");
+  return `${status ? `<span class="badge ${badgeClass(status)}">${esc(status)}</span> ` : ""}${esc(r.summary || r.message || "")}`;
 }
 
 function addStep(cls, html) {
@@ -201,90 +298,255 @@ function addStep(cls, html) {
   return li;
 }
 
-function renderFormulation(args, f) {
-  if (f.status === "error") {
-    $("formulation").innerHTML = `<div class="banner bad">${esc(f.message)}</div>`;
-    return;
-  }
-  const stores = f.destinations, whs = f.sources;
-  const head = `<tr><th>Cost $/unit</th>${stores.map((s) => `<th>${esc(s)}</th>`).join("")}<th>Supply</th></tr>`;
-  const rows = whs.map((w) => `<tr><th>${esc(w)}</th>${stores.map((s) => {
-      const c = args.costs?.[w]?.[s];
-      return c === undefined ? `<td class="closed" title="closed route">—</td>` : `<td>${fmt(Number(c))}</td>`;
-    }).join("")}<td><b>${fmt(Number(args.supplies[w]))}</b></td></tr>`).join("");
-  const dem = `<tr class="totals"><th>Demand</th>${stores.map((s) => `<td>${fmt(Number(args.demands[s]))}</td>`).join("")}<td></td></tr>`;
-  const cls = f.balance === "shortage" ? "b-warn" : f.balance === "surplus" ? "b-info" : "b-ok";
-  const lp = [
-    wrapObjective(f.objective),
-    "",
-    "subject to",
-    "  supply (each warehouse ships at most what it has):",
-    ...f.supply_constraints.map((c) => "    " + c),
-    "  demand (each store gets at least what it needs):",
-    ...f.demand_constraints.map((c) => "    " + c),
-    "  " + f.non_negativity,
-  ].join("\n");
-  $("formulation").innerHTML = `
-    <div class="scroll"><table><thead>${head}</thead><tbody>${rows}${dem}</tbody></table></div>
-    <div class="row"><span class="badge ${cls}">${esc(f.balance)}</span>
-      <span class="muted">Total supply ${fmt(f.total_supply)} · total demand ${fmt(f.total_demand)} — ${esc(f.note)}</span></div>
-    ${f.closed_routes.length ? `<p class="muted">Closed routes (no variable created): ${f.closed_routes.map(esc).join(", ")}</p>` : ""}
-    <div class="lp">${esc(lp)}</div>`;
+// ---------------------------------------------------------------- generic display blocks
+
+function cell(v, format) {
+  if (v === null || v === undefined || v === "") return `<td class="closed">—</td>`;
+  if (format === "money") return `<td>${money(v)}</td>`;
+  if (format === "pct") return `<td>${fmt(v)}%</td>`;
+  if (format === "number") return `<td>${fmt(v)}</td>`;
+  return `<td class="text">${esc(v)}</td>`;
+}
+
+function renderTable(t) {
+  const head = `<tr>${t.columns.map((c, i) => `<th class="${i === 0 || c.format === "text" ? "text" : ""}">${esc(c.label)}</th>`).join("")}</tr>`;
+  const rows = t.rows.map((r) => `<tr>${r.map((v, i) => i === 0 ? `<th class="text">${esc(v)}</th>` : cell(v, t.columns[i]?.format)).join("")}</tr>`).join("");
+  const total = t.total ? `<tr class="totals">${t.total.map((v, i) => i === 0 ? `<th class="text">${esc(v)}</th>` : cell(v, t.columns[i]?.format).replace('class="closed">—', ">")).join("")}</tr>` : "";
+  return `<h3>${esc(t.title)}</h3><div class="scroll"><table><thead>${head}</thead><tbody>${rows}${total}</tbody></table></div>${t.note ? `<p class="muted tnote">${esc(t.note)}</p>` : ""}`;
+}
+
+function renderBlocks(d) {
+  if (!d) return "";
+  const out = [];
+  for (const b of d.banners || []) out.push(`<div class="banner ${esc(b.tone)}">${esc(b.text)}</div>`);
+  if (d.stats?.length) out.push(`<div class="stat-row">${d.stats.map((s) => `<div class="stat"><div class="v">${
+    s.format === "money" ? money(s.value) : fmt(s.value)}</div><div class="l">${esc(s.label)}</div></div>`).join("")}</div>`);
+  for (const t of d.tables || []) out.push(renderTable(t));
+  return out.join("");
 }
 
 function wrapObjective(obj) {
-  const terms = obj.replace(/^minimize /, "").split(" + ");
+  const body = obj.replace(/^minimize /, "");
+  const terms = body.split(" + ");
+  if (terms.length <= 3) return "minimize   " + body;
   const lines = [];
   for (let i = 0; i < terms.length; i += 3) lines.push(terms.slice(i, i + 3).join(" + "));
   return "minimize   " + lines.join("\n         + ");
 }
 
-function shipmentsTable(r) {
-  const rows = r.shipments.map((s) => `<tr><td>${esc(s.from)} → ${esc(s.to)}</td><td>${fmt(s.units)}</td><td>${money(s.unit_cost)}</td><td>${money(s.route_cost)}</td></tr>`).join("");
-  return `<div class="scroll"><table><thead><tr><th>Route</th><th>Units</th><th>$/unit</th><th>Cost</th></tr></thead>
-    <tbody>${rows}<tr class="totals"><th>Total</th><td>${fmt(r.shipments.reduce((a, s) => a + s.units, 0))}</td><td></td><td>${money(r.total_cost)}</td></tr></tbody></table></div>`;
+function modelText(m) {
+  const lines = [wrapObjective(m.objective), "", "subject to"];
+  for (const g of m.groups) {
+    lines.push(`  ${g.title}:`);
+    const shown = g.lines.slice(0, 12);
+    lines.push(...shown.map((l) => "    " + l));
+    if (g.lines.length > shown.length) lines.push(`    … ${g.lines.length - shown.length} more`);
+  }
+  lines.push("", m.variables);
+  return lines.join("\n");
 }
 
-function unusedLine(r) {
-  const left = Object.entries(r.unused_supply || {}).filter(([, v]) => v > 1e-6);
-  return left.length ? `<p class="muted">Unused supply: ${left.map(([k, v]) => `${esc(k)} ${fmt(v)}`).join(", ")}</p>` : "";
+// ---------------------------------------------------------------- network view: diagram (Cytoscape) and map (Leaflet)
+
+// Route colors avoid the green used for customer dots.
+const ROUTE_COLORS = ["#2f6fde", "#d9480f", "#0b7285", "#ae3ec9", "#e67700", "#c2255c", "#5f3dc4", "#5c940d"];
+
+function roleColor(role) {
+  return { supply: cssVar("--accent"), hub: cssVar("--hub"), demand: cssVar("--ok"), depot: cssVar("--text"),
+           customer: cssVar("--ok"), skipped: cssVar("--bad") }[role] || cssVar("--muted");
 }
 
-function renderResult(state) {
+function geoOf(n) {
+  if (typeof n.lat === "number" && typeof n.lon === "number") return [n.lat, n.lon];
+  const p = places[n.id];
+  return p ? [p.lat, p.lon] : null;
+}
+
+function edgeStyle(e, net, maxUnits) {
+  if (net.kind === "routes") {
+    const groups = [...new Set(net.edges.map((x) => x.group))];
+    return { color: ROUTE_COLORS[groups.indexOf(e.group) % ROUTE_COLORS.length], width: 3, dashed: false };
+  }
+  if (!e.used) return { color: cssVar("--muted"), width: 1, dashed: true };
+  return { color: e.saturated ? cssVar("--warn") : cssVar("--accent"), width: 2 + 7 * (e.units || 0) / (maxUnits || 1), dashed: false };
+}
+
+function legendHtml(net) {
+  const roles = [...new Set(net.nodes.map((n) => n.role))];
+  const names = { supply: "supply", hub: "hub", demand: "demand", depot: "depot", customer: "customer", skipped: "not served" };
+  const items = roles.map((r) => `<span><i style="background:${roleColor(r)}"></i>${names[r] || r}</span>`);
+  if (net.kind === "routes") {
+    const groups = [...new Set(net.edges.map((e) => e.group))];
+    items.push(...groups.map((g, i) => `<span><i style="background:${ROUTE_COLORS[i % ROUTE_COLORS.length]};border-radius:2px"></i>${esc(g)}</span>`));
+  } else if (net.edges.some((e) => e.used)) {
+    items.push("<span>line width = units</span>");
+    if (net.edges.some((e) => e.saturated)) items.push(`<span><i style="background:${cssVar("--warn")};border-radius:2px"></i>lane at capacity</span>`);
+    if (net.edges.some((e) => !e.used)) items.push("<span>dashed = unused</span>");
+  }
+  return items.join("");
+}
+
+// Scale coordinate-based positions to a ~420px box so the diagram fits at about 100% zoom and labels stay readable.
+function normalize(pos) {
+  const xs = Object.values(pos).map((p) => p.x), ys = Object.values(pos).map((p) => p.y);
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) || 1;
+  for (const p of Object.values(pos)) { p.x *= 420 / span; p.y *= 420 / span; }
+  return pos;
+}
+
+function diagramPositions(net) {
+  const pos = {};
+  if (net.nodes.every((n) => typeof n.x === "number")) {
+    for (const n of net.nodes) pos[n.id] = { x: n.x, y: -n.y };
+    return normalize(pos);
+  }
+  if (net.kind === "routes" && net.nodes.every((n) => geoOf(n))) {
+    const lat0 = net.nodes.reduce((a, n) => a + geoOf(n)[0], 0) / net.nodes.length;
+    for (const n of net.nodes) { const [la, lo] = geoOf(n); pos[n.id] = { x: lo * Math.cos(lat0 * Math.PI / 180), y: -la }; }
+    return normalize(pos);
+  }
+  // Layered: sources on the left, hubs in the middle, destinations on the right.
+  const cols = { supply: 0, depot: 0, hub: 1, demand: 2, customer: 2, skipped: 2 };
+  const hasHub = net.nodes.some((n) => n.role === "hub");
+  const byCol = {};
+  for (const n of net.nodes) { const c = cols[n.role] ?? 1; (byCol[c] ||= []).push(n); }
+  for (const [c, nodes] of Object.entries(byCol)) {
+    const x = (hasHub ? Number(c) : Math.min(Number(c), 1)) * 300;
+    nodes.forEach((n, i) => { pos[n.id] = { x, y: (i - (nodes.length - 1) / 2) * 105 }; });
+  }
+  return pos;
+}
+
+function drawDiagram(canvas, net) {
+  if (!window.cytoscape) { canvas.innerHTML = `<p class="placeholder" style="padding:12px">Diagram library didn't load (offline?).</p>`; return () => {}; }
+  const maxUnits = Math.max(1, ...net.edges.map((e) => e.units || 0));
+  const pos = diagramPositions(net);
+  // Before solving nothing is used yet: label every lane (cost, capacity). After solving, label only used lanes.
+  const structure = !net.edges.some((e) => e.used);
+  const elements = [
+    ...net.nodes.map((n) => ({ data: { id: n.id, label: n.label || n.id, color: roleColor(n.role), shape: n.role === "depot" ? "round-rectangle" : n.role === "hub" ? "diamond" : "ellipse" }, position: pos[n.id] })),
+    ...net.edges.map((e, i) => {
+      const st = edgeStyle(e, net, maxUnits);
+      return { data: { id: "e" + i, source: e.from, target: e.to, label: (e.used || structure || net.kind === "routes") ? (e.label || "") : "",
+                       color: st.color, width: st.width, line: st.dashed ? "dashed" : "solid" } };
+    }),
+  ];
+  const cy = cytoscape({
+    container: canvas, elements, layout: { name: "preset", fit: true, padding: 40 },
+    wheelSensitivity: 0.2, boxSelectionEnabled: false,
+    style: [
+      { selector: "node", style: { "background-color": "data(color)", shape: "data(shape)", width: 22, height: 22, label: "data(label)",
+          "text-wrap": "wrap", "font-size": 11, color: cssVar("--text"), "text-valign": "bottom", "text-margin-y": 5,
+          "text-background-color": cssVar("--card"), "text-background-opacity": 0.85, "text-background-padding": 2 } },
+      { selector: "edge", style: { width: "data(width)", "line-color": "data(color)", "target-arrow-color": "data(color)",
+          "target-arrow-shape": "triangle", "curve-style": "bezier", "line-style": "data(line)", label: "data(label)",
+          "font-size": 10, color: cssVar("--text"), "text-background-color": cssVar("--card"), "text-background-opacity": 0.9,
+          "text-background-padding": 2, "text-rotation": "autorotate", opacity: 0.9 } },
+    ],
+  });
+  return () => cy.destroy();
+}
+
+function drawMap(canvas, net) {
+  if (!window.L) { canvas.innerHTML = `<p class="placeholder" style="padding:12px">Map library didn't load (offline?).</p>`; return () => {}; }
+  const map = L.map(canvas, { scrollWheelZoom: false });
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+  const maxUnits = Math.max(1, ...net.edges.map((e) => e.units || 0));
+  const byId = Object.fromEntries(net.nodes.map((n) => [n.id, n]));
+  const pts = [];
+  for (const e of net.edges) {
+    const a = geoOf(byId[e.from] || {}), b = geoOf(byId[e.to] || {});
+    if (!a || !b) continue;
+    const st = edgeStyle(e, net, maxUnits);
+    const line = L.polyline([a, b], { color: st.color, weight: st.width, opacity: e.used ? 0.85 : 0.5, dashArray: st.dashed ? "5 6" : null }).addTo(map);
+    if (e.label && (e.used || net.kind === "routes")) line.bindTooltip(`${esc(e.from)} → ${esc(e.to)}: ${esc(e.label)}`, { sticky: true });
+  }
+  for (const n of net.nodes) {
+    const g = geoOf(n);
+    if (!g) continue;
+    pts.push(g);
+    const marker = L.circleMarker(g, { radius: n.role === "depot" || n.role === "hub" ? 9 : 7, color: "#fff", weight: 2,
+                                       fillColor: roleColor(n.role), fillOpacity: 1 }).addTo(map);
+    // Short permanent name label; the full label (supply, demand) shows on hover.
+    marker.bindTooltip(esc(n.id), { permanent: net.nodes.length <= 14, direction: "right", offset: [8, 0] });
+    marker.bindPopup(`<div style="white-space:pre">${esc(n.label || n.id)}</div>`);
+  }
+  // Size the map to its container first, then fit the places, or Leaflet fits against a zero-size box.
+  const fit = () => { map.invalidateSize(); if (pts.length) map.fitBounds(pts, { padding: [50, 50], maxZoom: 12 }); };
+  fit();
+  setTimeout(fit, 50);
+  return () => map.remove();
+}
+
+function mountNetwork(container, net) {
+  if (container._cleanup) container._cleanup();
+  if (!net || !net.nodes?.length) { container.innerHTML = ""; return; }
+  const hasGeo = net.nodes.every((n) => geoOf(n));
+  const mode = hasGeo && preferredView === "map" ? "map" : "diagram";
+  container.innerHTML = `<div class="net"><div class="net-bar">
+      <span><button class="seg ${mode === "diagram" ? "on" : ""}" data-v="diagram">Diagram</button><button class="seg ${mode === "map" ? "on" : ""}" data-v="map" ${hasGeo ? "" : 'disabled title="Map needs coordinates for every place (the agent looks them up for real place names)"'}>Map</button></span>
+      <span class="legend">${legendHtml(net)}</span></div><div class="net-canvas"></div></div>`;
+  const canvas = container.querySelector(".net-canvas");
+  container._cleanup = mode === "map" ? drawMap(canvas, net) : drawDiagram(canvas, net);
+  container.querySelector(".net-bar").onclick = (e) => {
+    const v = e.target.dataset?.v;
+    if (!v || e.target.disabled || v === mode) return;
+    preferredView = v;
+    renderAll();
+  };
+}
+
+// ---------------------------------------------------------------- sections
+
+function renderFormulation() {
+  const { identify, formulate } = view;
   const parts = [];
-  const { solve, triage } = state;
-  if (solve && solve.status === "infeasible") {
-    parts.push(`<div class="banner bad"><b>Standard problem has no solution.</b> ${esc(solve.message)}</div>`);
+  if (identify) {
+    const label = identify.label || (identify.status === "unsupported" ? "Not supported yet" : identify.problem_type);
+    parts.push(`<div class="ptype"><span class="badge">${esc(label)}</span><span class="muted">${esc(identify.reasoning || "")}</span></div>`);
+    if (identify.status === "unsupported")
+      parts.push(`<p class="muted">Supported: ${Object.values(problemTypes).map((t) => esc(t.label)).join(" · ")}</p>`);
   }
-  if (triage && triage.status !== "error") {
-    const short = triage.stores_short;
-    if (short.length) {
-      parts.push(`<div class="banner warn"><b>Triage:</b> ${short.length} of ${short.length + triage.stores_fully_served.length} stores cannot be fully served${
-        triage.stores_not_served_at_all.length ? ` (${triage.stores_not_served_at_all.map(esc).join(", ")} gets nothing)` : ""}. ${fmt(triage.units_delivered)} of ${fmt(triage.total_demand)} units delivered.</div>`);
+  if (formulate) {
+    if (formulate.status === "error") parts.push(`<div class="banner bad">${esc(formulate.message)}</div>`);
+    else {
+      parts.push(renderBlocks(formulate.display));
+      if (formulate.model) parts.push(`<div class="lp">${esc(modelText(formulate.model))}</div>`);
+      parts.push(`<div class="net-slot"></div>`);
     }
-    parts.push(`<div class="stat-row">
-      <div class="stat"><div class="v">${money(triage.total_cost)}</div><div class="l">Shipping cost</div></div>
-      <div class="stat"><div class="v">${fmt(triage.units_delivered)}</div><div class="l">Units delivered</div></div>
-      <div class="stat"><div class="v">${fmt(triage.total_shortfall)}</div><div class="l">Units short</div></div>
-      <div class="stat"><div class="v">${triage.stores_fully_served.length}/${triage.stores_fully_served.length + short.length}</div><div class="l">Stores fully served</div></div></div>`);
-    if (short.length) {
-      parts.push(`<h3>Stores left short</h3><div class="scroll"><table><thead><tr><th>Store</th><th>Needs</th><th>Gets</th><th>Short</th><th>Served</th></tr></thead><tbody>${
-        short.map((s) => `<tr><td>${esc(s.store)}</td><td>${fmt(s.demand)}</td><td>${fmt(s.delivered)}</td><td>${fmt(s.short)}</td><td>${fmt(s.served_pct)}%</td></tr>`).join("")}</tbody></table></div>`);
-    }
-    parts.push(`<h3>Shipping plan</h3>${shipmentsTable(triage)}${unusedLine(triage)}`);
-  } else if (solve && solve.status === "optimal") {
-    parts.push(`<div class="stat-row">
-      <div class="stat"><div class="v">${money(solve.total_cost)}</div><div class="l">Minimum total cost</div></div>
-      <div class="stat"><div class="v">${fmt(solve.total_demand)}</div><div class="l">Units delivered</div></div>
-      <div class="stat"><div class="v">${solve.shipments.length}</div><div class="l">Routes used</div></div></div>
-      <h3>Shipping plan</h3>${shipmentsTable(solve)}${unusedLine(solve)}`);
-  } else if (solve && solve.status !== "infeasible") {
-    parts.push(`<div class="banner bad">${esc(solve.message || solve.status)}</div>`);
   }
-  if (state.finalText) parts.push(`<div class="explain"><h3>Agent's explanation</h3>${md(state.finalText)}</div>`);
-  if (state.error) parts.push(`<div class="banner bad">${esc(state.error)}</div>`);
-  $("result").innerHTML = parts.length ? parts.join("") : `<p class="placeholder">The agent did not call the solver.</p>`;
+  if (!parts.length) return;
+  $("formulation").innerHTML = parts.join("");
+  const slot = $("formulation").querySelector(".net-slot");
+  if (slot && formulate?.display?.network) mountNetwork(slot, formulate.display.network);
 }
+
+function renderResult() {
+  const { solve, triage, finalText, error } = view;
+  const parts = [];
+  const shown = triage && triage.status !== "error" ? triage : solve;
+  if (triage && solve && solve.status === "infeasible") parts.push(renderBlocks({ banners: solve.display?.banners }));
+  if (shown) {
+    if (shown.status === "error") parts.push(`<div class="banner bad">${esc(shown.message)}</div>`);
+    else parts.push(renderBlocks(shown.display));
+    if (shown.display?.network && shown.status !== "infeasible") parts.push(`<div class="net-slot"></div>`);
+  }
+  if (finalText) parts.push(`<div class="explain"><h3>Agent's explanation</h3>${md(finalText)}</div>`);
+  if (error) parts.push(`<div class="banner bad">${esc(error)}</div>`);
+  $("result").innerHTML = parts.length ? parts.join("") : `<p class="placeholder">The agent did not call the solver.</p>`;
+  const slot = $("result").querySelector(".net-slot");
+  if (slot) mountNetwork(slot, shown.display.network);
+}
+
+function renderAll() {
+  if (!view) return;
+  renderFormulation();
+  renderResult();
+}
+
+// ---------------------------------------------------------------- run
 
 async function run() {
   const question = $("question").value.trim();
@@ -292,17 +554,21 @@ async function run() {
   $("run").disabled = true;
   $("status").innerHTML = `<span class="spinner"></span> Agent is working…`;
   $("steps").innerHTML = "";
-  $("formulation").innerHTML = `<p class="placeholder">Waiting for the agent…</p>`;
+  const followUp = Boolean(sessionId);
+  if (!followUp) { places = {}; }
+  // A follow-up keeps the problem type and formulation on screen until new ones arrive.
+  view = { identify: followUp ? view?.identify : null, formulate: followUp ? view?.formulate : null,
+           solve: null, triage: null, finalText: "", error: null };
+  if (!followUp) $("formulation").innerHTML = `<p class="placeholder">Waiting for the agent…</p>`;
   $("result").innerHTML = `<p class="placeholder">Waiting for the solver…</p>`;
   addStep("agent", `<div class="step-head"><b>You</b></div><div class="muted" style="white-space:pre-wrap">${esc(question)}</div>`);
 
-  const state = { solve: null, triage: null, finalText: "", error: null };
   const pending = {};
   let n = 0;
   let lastEvent = Date.now();
   const slowTimer = setInterval(() => {
     if (Date.now() - lastEvent > 12000)
-      $("status").innerHTML = `<span class="spinner"></span> Still working… the free Gemini tier allows ~5 requests a minute, so the agent may be waiting to retry.`;
+      $("status").innerHTML = `<span class="spinner"></span> Still working… the agent may be waiting on the solver or retrying a rate-limited request.`;
   }, 2000);
 
   const handle = (ev) => {
@@ -312,11 +578,11 @@ async function run() {
       sessionId = ev.session_id;
     } else if (ev.type === "tool_call") {
       n += 1;
-      const cls = ev.name === "solve_with_shortage_triage" ? "triage pending" : "pending";
-      pending[ev.id || ev.name] = addStep(cls, `<div class="step-head"><span class="muted">#${n}</span><b>${esc(TOOL_LABELS[ev.name] || ev.name)}</b><code>${esc(ev.name)}()</code></div>
+      const stage = stageOf(ev.name);
+      const cls = (stage === "triage" ? "triage " : stage === "identify" ? "identify " : "") + "pending";
+      pending[ev.id || ev.name] = addStep(cls, `<div class="step-head"><span class="muted">#${n}</span><b>${esc(toolLabel(ev.name))}</b><code>${esc(ev.name)}()</code></div>
         <div class="sum"><span class="spinner"></span></div>
         <details><summary>Arguments</summary><pre class="json">${esc(JSON.stringify(ev.args, null, 2))}</pre></details>`);
-      pending[ev.id || ev.name].args = ev.args;
     } else if (ev.type === "tool_result") {
       const li = pending[ev.id || ev.name];
       const r = ev.response;
@@ -327,18 +593,21 @@ async function run() {
         if (engine) li.querySelector(".sum").insertAdjacentHTML("afterend", `<div class="engine">${engine}</div>`);
         li.insertAdjacentHTML("beforeend", `<details><summary>Response</summary><pre class="json">${esc(JSON.stringify(r, null, 2))}</pre></details>`);
       }
-      if (ev.name === "formulate_transportation_problem") renderFormulation(li?.args || {}, r);
-      if (ev.name === "solve_transportation_problem") { state.solve = r; state.triage = null; renderResult(state); }
-      if (ev.name === "solve_with_shortage_triage") { state.triage = r; renderResult(state); }
+      const stage = stageOf(ev.name, r);
+      if (stage === "identify") { view.identify = r; view.formulate = null; renderFormulation(); }
+      else if (stage === "locate") { Object.assign(places, r.places || {}); renderAll(); }
+      else if (stage === "formulate") { view.formulate = r; renderFormulation(); }
+      else if (stage === "solve") { view.solve = r; view.triage = null; renderResult(); }
+      else if (stage === "triage") { view.triage = r; renderResult(); }
     } else if (ev.type === "thought") {
       addStep("thought", `<div class="step-head"><b>Agent's reasoning</b><span class="muted">Gemini thought summary</span></div><div class="thought-body">${md(ev.text)}</div>`);
     } else if (ev.type === "text") {
-      if (ev.final) { state.finalText = ev.text; renderResult(state); }
+      if (ev.final) { view.finalText = ev.text; renderResult(); }
       else addStep("agent", `<div class="step-head"><b>Agent</b></div><div>${md(ev.text)}</div>`);
     } else if (ev.type === "error") {
-      state.error = ev.message;
+      view.error = ev.message;
       addStep("agent", `<div class="banner bad">${esc(ev.message)}</div>`);
-      renderResult(state);
+      renderResult();
     }
   };
 
@@ -358,8 +627,8 @@ async function run() {
         if (line) handle(JSON.parse(line));
       }
     }
-    if (!state.solve && !state.triage && !state.error) renderResult(state);
-    if (!$("formulation").querySelector("table") && !$("formulation").querySelector(".banner"))
+    if (!view.solve && !view.triage && !view.error) renderResult();
+    if (!view.identify && !view.formulate)
       $("formulation").innerHTML = `<p class="placeholder">The agent did not formulate a problem this turn.</p>`;
     $("status").textContent = "Done.";
     $("session-note").hidden = false;

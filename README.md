@@ -1,24 +1,34 @@
 # Agentic Logistic Handler
 
-An agentic twist on the classical transportation problem.
+An agent that solves logistics optimization problems described in plain language.
 
-You describe a shipping network in plain language: warehouses, stores, how much each one has or needs, and what each route costs. A chat agent built with Google's [Agent Development Kit (ADK)](https://adk.dev/get-started/python/) turns that description into a transportation problem and solves it exactly with [PuLP](https://coin-or.github.io/pulp/), a free linear-programming library. It then explains the result and re-plans when you ask "what if?"
+You describe what needs to move where: warehouses and stores, plants and distribution centers, product lines sharing trucks, or a fleet of delivery vans. A chat agent built with Google's [Agent Development Kit (ADK)](https://adk.dev/get-started/python/) works out **which kind of optimization problem it is**, writes it out as a model, and solves it exactly with [PuLP](https://coin-or.github.io/pulp/), a free linear-programming library, and its bundled CBC solver. It then explains the plan, draws it as a network diagram or on a map, and re-plans when you ask "what if?"
 
-When there isn't enough stock to go around, the standard problem has no solution. The agent detects this, says so, and then runs a **shortage triage** step: it ships every unit that exists at the lowest cost and tells you exactly which stores will be left short and by how much.
+When the problem has no solution as stated (not enough stock, a lane that can't carry enough, too few vehicles), the agent says why and runs a **triage** step: it finds the best partial plan and tells you exactly who is left short and by how much.
+
+### Problem types
+
+| Type | Use it when | Example sample |
+|---|---|---|
+| **Transportation** | One product goes straight from sources to destinations at a cost per unit | 3 warehouses supply 4 stores |
+| **Minimum-cost flow** (transshipment) | One product passes through hubs (distribution centers, cross-docks) and/or lanes have capacity limits | 2 plants → 2 DCs → 3 cities |
+| **Multi-product flow** | Several products share the same lanes; a lane's capacity limits all of them together; some lanes carry only some products | Frozen and dry goods on shared trucks |
+| **Vehicle routing** | Vehicles leave one depot, visit customers in order and come back, within a load limit (up to 15 customers) | 3 vans, 8 customers |
 
 ### How it works
 
 ```mermaid
 flowchart LR
-    Q[Question in<br/>plain language] --> F[Agent formulates<br/>the problem]
-    F --> S[Exact LP solve<br/>PuLP / CBC]
-    S -->|enough stock| R[Plan + cost<br/>+ explanation]
-    S -->|supply < demand| T[Shortage triage:<br/>ship all stock,<br/>name short stores]
+    Q[Question in<br/>plain language] --> I[Agent identifies<br/>the problem type]
+    I --> F[Formulate<br/>the model]
+    F --> S[Exact solve<br/>PuLP / CBC]
+    S -->|solvable| R[Plan + cost<br/>+ diagram / map<br/>+ explanation]
+    S -->|no solution| T[Triage:<br/>best partial plan,<br/>who is short]
     T --> R
     R -->|what-if follow-up| F
 ```
 
-The Gemini agent handles the conversation and decides which tool to call; Python tools do all the math. Every number in an answer comes from the user or a tool.
+The Gemini agent handles the conversation, picks the problem type and decides which tool to call; Python tools do all the math. Every number in an answer comes from the user or a tool.
 
 ## Quick start
 
@@ -62,105 +72,121 @@ Then start the app:
 
 To choose the port yourself: `PORT=9000 ./run.sh`. If that port is taken, `run.sh` stops and says what is using it.
 
-**Try this (about 3 minutes):**
+### Try this
 
-1. The classic (balanced) problem is already in the text box. Click **Run agent** and watch the three sections fill in: problem formulation → agent steps → result. Expect a minimum cost of **$5,700**. In **Agent steps**, each tool call is preceded by the agent's reasoning (Gemini thought summaries), and the solve step shows the exact open-source PuLP → CBC call it made, with problem size and solve time.
-2. Type a follow-up: *"The Atlanta → Miami route is closed. Re-plan."* Expect **$8,700**, with the agent explaining what changed.
-3. Click **New problem**, then **Shortage → triage** → **Run agent**. The solver reports the problem has no solution (200 units short); the agent then runs the triage step and shows which stores won't be fully served.
-4. Optional: describe your own small network in the text box, e.g. *"Factory A has 100 units, B has 150. Store X needs 120, Y needs 130. A→X $4, A→Y $6, B→X $5, B→Y $3."*
+The **Sample problems** pane on the right lists two or three problems per type. Clicking one puts its text in the question box; press **Run agent**. The sample text never names the problem type, so you can watch the agent work it out: the first step in **Agent steps** is *Identify problem type*, with the agent's reasoning above it.
 
-Expand **Arguments** / **Response** under any tool call to see exactly what the agent sent to the solver and what came back.
+| Sample | What to expect |
+|---|---|
+| Transportation → **Warehouses → stores** | Minimum cost **$5,700**. Follow up with *"The Atlanta → Miami route is closed. Re-plan."*: **$8,700**, and the agent explains the extra $3,000. |
+| Transportation → **Shortage → triage** | No solution (200 units short). Triage delivers all 1,000 units for **$4,900**; Miami gets 200 of its 400. |
+| Min-cost flow → **Plants → DCs → stores** | **$2,800**. Both plant lanes run at capacity; 350 units go through Sacramento DC and 400 through Bakersfield DC; 50 units stay at each plant. |
+| Min-cost flow → **Lane bottleneck → triage** | There's enough stock, but the storm-limited lane can't carry it. Triage: San Diego gets 50 of 150; cost **$2,000**. |
+| Multi-product flow → **Frozen + dry, shared trucks** | **$4,600** ($2,400 frozen, $2,200 dry); Omaha → Chicago is full; no frozen goes on the dry-only lane. |
+| Multi-product flow → **Capacity squeeze → triage** | Indianapolis' lane is cut to 150. Triage delivers 750 of 850 units for **$3,800**: Indianapolis gets its dry goods but none of its 100 frozen. Follow up with *"What if the Indianapolis lane goes back up to 250?"* to get back to $4,600. |
+| Vehicle routing → **Delivery vans** | All 8 customers with 3 vans: **90 km, $180**, proven optimal. |
+| Vehicle routing → **Van out of service → triage** | 220 crates, 2 vans of 100: no solution. Triage serves 7 of 8 customers (200 crates), leaves out Pharmacy, **$178.36**. |
+
+Each result has a **Diagram / Map** toggle (see [Seeing the plan](#seeing-the-plan-diagram-and-map)). Expand **Arguments** / **Response** under any tool call to see exactly what the agent sent to the solver and what came back. Each solve step shows the exact open-source PuLP → CBC call, problem size and solve time.
+
+You can also type your own problem, e.g. *"Factory A has 100 units, B has 150. Store X needs 120, Y needs 130. A→X $4, A→Y $6, B→X $5, B→Y $3."*
+
+One question takes about 4-7 model calls (identify, locate places, formulate, solve, maybe triage, explain). On the free Gemini tier that can hit the per-minute limit; the agent waits and retries automatically, and the page says so.
 
 ---
 
-## The problem being solved
+## The problem types in detail
 
-- **Sources** (warehouses) each have a **supply**: units on hand.
-- **Destinations** (stores) each have a **demand**: units they need.
-- Each route from a source to a destination has a **cost per unit**.
-- The goal is to decide how many units to send on each route so that every store gets what it needs, no warehouse ships more than it has, and the total shipping cost is as low as possible.
+All four are solved exactly by PuLP + CBC. Each type has three tools: **formulate** (check the data and write out the model, no solving), **solve**, and **triage**.
 
-A route that doesn't exist, such as a closed road or a lane with no carrier, is left out of the cost table, and the solver never uses it.
+### Transportation
+
+- **Data:** supply at each source, demand at each destination, cost per unit on each open route.
+- **Model:** one variable per open route (units shipped, ≥ 0). Minimize total cost, subject to: each source ships at most its supply; each destination gets at least its demand.
+- **No solution when:** total supply is below total demand. That's caught from the totals, before calling the solver.
+- **Triage:** every undelivered unit carries a penalty larger than any possible rerouting saving, so the solver first delivers every unit it can, then picks the cheapest way to do it.
+
+### Minimum-cost flow (transshipment)
+
+- **Data:** supplies, demands, and a list of lanes: `{"from", "to", "cost", "capacity"?}`. Places that appear only in lanes are **hubs**: what flows in must flow out.
+- **Model:** one variable per lane, between 0 and the lane's capacity. Flow balance at every place: out − in ≤ supply − demand; at hubs out − in = 0.
+- **Covers the transportation problem** (the tests check it gives the same $5,700), plus hubs and lane limits.
+- **No solution when:** there isn't enough supply (reason `shortage`), or there is, but the lanes can't carry it (reason `network`: a capacity limit or a missing link). The second case is the interesting one: the totals look fine, so the agent needs the solver to find out.
+- **Triage:** same penalty idea. It reports which destinations are short and which lanes are full (the bottlenecks that caused it).
+- **Results include:** units through each hub, and which lanes are at capacity.
+
+### Multi-product flow
+
+- **Data:** supplies and demands per product (`supplies[product][place]`), and lanes with a per-unit `cost`, optional per-product `product_costs`, an optional shared `capacity`, and an optional list of `products` the lane may carry.
+- **Model:** one variable per product per lane it may carry. Flow balance per product at every place; on each lane, the sum over all products ≤ capacity.
+- **No solution when:** some product is short overall, or the shared lanes can't carry everything.
+- **Triage:** reports which destination/product pairs are short. It cuts whatever is most expensive to deliver, which may not match business priorities; the agent says so.
+
+### Vehicle routing (capacitated)
+
+- **Data:** depot, demand per customer (up to 15), number of vehicles, vehicle capacity, and either coordinates (x, y in km, or latitude/longitude) or a distance table. Optional cost per km and fixed cost per vehicle used.
+- **Model** (mixed-integer): a yes/no variable for each pair of places (does a vehicle drive straight from i to j?). Each customer is entered and left exactly once; at most K vehicles leave the depot and all come back. A load variable per customer enforces the capacity and rules out loops that skip the depot.
+- **Exact but slow to grow:** fine for a demo-sized fleet. CBC gets a 30-second limit; if it stops early the result says the plan is the best found, not proven optimal.
+- **No solution when:** total demand exceeds the fleet's capacity, an order is bigger than a vehicle, or the orders can't be packed into the vehicles.
+- **Triage:** each customer becomes optional, with a penalty per undelivered unit. The solver serves as much demand as possible, then minimizes driving. Orders bigger than a vehicle are reported separately.
 
 ---
 
-## How the agentic workflow runs, from input to output
+## Seeing the plan: diagram and map
 
-There are two parts, and each does what it's good at:
+Every formulate, solve and triage result includes a small network description (places with roles, lanes with units and capacity, or vehicle routes). The page draws it two ways, using free open-source libraries loaded from a CDN:
+
+- **Diagram** ([Cytoscape.js](https://js.cytoscape.org/), MIT license): sources on the left, hubs in the middle (diamonds), destinations on the right. Line width = units shipped, orange = lane at full capacity, dashed = unused lane. Vehicle routes are drawn at their coordinates, one color per vehicle; customers left out by triage are red.
+- **Map** ([Leaflet](https://leafletjs.com/), BSD license, with [OpenStreetMap](https://www.openstreetmap.org/copyright) tiles): the same network over a real map.
+
+The map needs coordinates. When a problem names real places, the agent calls `locate_places`, which looks the names up with OpenStreetMap's free [Nominatim](https://nominatim.org/) service (no key; at most one request per second, as its usage policy asks; results cached). The agent maps each name used in the data to a search text, e.g. `"Sacramento DC" → "Sacramento, California"`. If the lookup fails, the page shows the diagram only. The coordinates are only for drawing, except in vehicle routing with real places and no distances given, where the agent may use them for straight-line distances and says so. They're never used to make up shipping costs.
+
+Map lines are straight segments between places, not road routes.
+
+---
+
+## How the agentic workflow runs
 
 | Part | What it does | What it never does |
 |---|---|---|
-| **The agent** (a Gemini model running inside ADK) | Talks with the user, gathers and organizes the data, decides when to call a tool, explains results, handles follow-up questions | Never works out the shipping plan or any of its numbers itself |
-| **The tools** (plain Python functions) | Load sample data, check the input, build the problem, solve it with PuLP, return exact numbers | Never talk to the user |
-
-So the language model handles the conversation and the solver handles the math. Every number in the final answer comes from the user or from a tool.
-
-### Detailed flow
+| **The agent** (a Gemini model running inside ADK) | Talks with the user, identifies the problem type, gathers the data, decides which tool to call, explains results, handles follow-ups | Never works out a plan, a route or any of their numbers itself |
+| **The tools** (plain Python functions) | Return the data checklist for a type, look up coordinates, check the input, build the model, solve it with PuLP, return exact numbers | Never talk to the user |
 
 ```mermaid
 flowchart TD
-    U[User message in plain language] --> A[Agent reads the request]
-    A --> D{Where does the data come from?}
-    D -->|User describes their own network| P[Agent pulls supplies, demands and costs out of the conversation]
-    D -->|User wants an example| S[Tools: list_sample_scenarios / load_sample_scenario]
-    P --> C[Agent shows the data as tables and asks the user to confirm]
-    S --> C
-    C -->|User corrects something| P
-    C -->|User confirms| F[Tool: formulate_transportation_problem]
-    F --> T[Tool: solve_transportation_problem]
-    T --> V{Tool checks the input}
-    V -->|Bad input| E[status: error + reason]
-    V -->|Total supply below total demand| I[status: infeasible + shortfall]
-    V -->|Input is valid| L[Build the problem in PuLP and solve with the CBC solver]
-    L --> R[status: optimal + shipments, total cost, unused supply]
-    I --> TR[Tool: solve_with_shortage_triage]
-    TR --> TP[status: partial + plan for all available stock, stores left short]
-    E --> X[Agent explains in plain language]
-    TP --> X
-    R --> X
-    X --> O[Answer: total cost, shipment table, unused supply, short reason why]
-    O --> W{User asks a what-if?}
-    W -->|Yes: close a route, change a cost, supply or demand| M[Agent edits its copy of the data]
-    M --> T
-    W -->|No| Z[Done]
+    U[User message] --> ID[identify_problem_type: type + reasoning]
+    ID -->|unsupported| X[Explain, name closest supported type]
+    ID --> L{Real place names?}
+    L -->|yes| LP[locate_places: coordinates for the map]
+    L -->|no| F
+    LP --> F[formulate_TYPE: check data, write out model]
+    F -->|error| E[Explain what's wrong, ask user to fix]
+    F --> S[solve_TYPE: exact PuLP / CBC solve]
+    S -->|optimal| A[Answer: cost, plan table, diagram/map, why]
+    S -->|infeasible| T[triage_TYPE: best partial plan, who is short]
+    T --> A
+    A --> W{What-if?}
+    W -->|edit data| F
 ```
 
-### Step 1: The user describes the problem
+1. **Identify.** The agent calls `identify_problem_type(problem_type, reasoning)`. The tool returns that type's data checklist, the names of its formulate / solve / triage tools, and what the answer should cover. This keeps the agent's main instructions short: per-type details arrive only when needed. The page shows the type as a badge with the agent's reasoning.
+2. **Get the data.** From the message, or from a sample (`list_sample_problems` / `load_sample_problem`). If something is missing or contradictory, the agent asks. It never invents costs, capacities or demands.
+3. **Locate** (only for real place names): `locate_places`, for the map.
+4. **Formulate.** It checks the data and writes out the model: tables of places and lanes (or customers and distances), the objective, the constraints, and the variables. The page shows this in **Problem type & formulation**.
+5. **Solve.** It's exact: `optimal` with the plan, or `infeasible` with the reason.
+6. **Triage** if infeasible: the best partial plan, and who is short.
+7. **Explain.** Total cost, the key table for the type, bottlenecks or unused supply, and one or two sentences on why the plan looks this way.
+8. **What-ifs.** The agent edits its copy of the data (close a lane, change a cost, capacity, supply, demand, vehicle count) and re-runs formulate → solve, comparing with the previous answer. It doesn't re-identify the type unless the change makes it a different kind of problem.
 
-The input is a normal chat message. It can be:
+### Input checks
 
-- **A description of their own network**, e.g. *"I have two factories, A with 100 units and B with 150. Store X needs 120 and store Y needs 130. A to X costs $4 a unit ..."*
-- **A request for an example**, e.g. *"Show me the sample scenarios."*
-- **A general question**, e.g. *"What can you do?"* The agent explains its job and offers the sample scenarios.
+Every tool rejects input that can't produce a sensible plan and says why: missing sources or destinations, negative numbers, a lane or route to a place that isn't listed, the same lane listed twice, a destination with no incoming lane, numbers that aren't numbers (numeric strings like `"300"` are accepted), more than 15 customers for vehicle routing, and so on.
 
-### Step 2: The agent gathers the data
+---
 
-The agent needs three things before it can solve anything:
+## Worked example: transportation
 
-1. **Supplies**: each warehouse and how many units it has.
-2. **Demands**: each store and how many units it needs.
-3. **Costs**: the per-unit cost of each route that exists.
-
-**From the conversation:** the agent pulls these numbers out of what the user wrote. If something is missing (say, a route cost wasn't mentioned), it asks. It doesn't guess.
-
-**From the sample data:** the agent calls two tools:
-
-- `list_sample_scenarios()` returns the name and a one-line description of each built-in scenario.
-- `load_sample_scenario(name)` returns that scenario's supplies, demands and costs. An unknown name returns an `error`.
-
-Three samples are included:
-
-| Scenario | What it shows |
-|---|---|
-| `us_retail_basic` | 3 warehouses, 4 stores, total supply = total demand = 1,200 units |
-| `us_retail_surplus` | Same, but Denver has 700 units, so 200 are left over |
-| `us_retail_shortage` | Same, but Atlanta has only 200 units, so there aren't enough to go around |
-
-### Step 3: The agent confirms the data with the user
-
-If the message is missing data or contradicts itself, the agent asks before solving. If the message already contains complete data (as the web UI's sample questions do), or the user said "just solve it", the agent goes straight on. Either way, the formulation step below shows the data as a table, so mistakes in how the agent read the message are easy to spot.
-
-For `us_retail_basic`, the table looks like this:
+For the **Warehouses → stores** sample, the formulation table is:
 
 | Cost $/unit | Phoenix | Houston | Miami | Chicago | **Supply** |
 |---|---|---|---|---|---|
@@ -169,11 +195,7 @@ For `us_retail_basic`, the table looks like this:
 | Denver  | 5  | 7 | 13 | 8 | 500 |
 | **Demand** | 250 | 350 | 400 | 200 | |
 
-### Step 4: The agent formulates and then calls the solver tool
-
-First the agent calls `formulate_transportation_problem(supplies, demands, costs)`. It checks the data and writes out the problem: one variable per open route, the cost to minimize, the supply and demand constraints, and whether supply and demand are balanced. It doesn't solve anything. The web UI shows this as the **Problem formulation** section.
-
-Then the agent passes the same data to `solve_transportation_problem(supplies, demands, costs)` as structured data:
+The agent calls `solve_transportation_problem(supplies, demands, costs)` with:
 
 ```python
 supplies = {"Dallas": 300, "Atlanta": 400, "Denver": 500}
@@ -185,111 +207,26 @@ costs    = {
 }
 ```
 
-ADK lets the model call this function directly. The model knows what the tool does from the function's name, argument types and docstring. The ADK Dev UI shows every tool call with its exact arguments and response, so you can check that the model passed the right data and didn't invent the answer.
-
-### Step 5: The tool checks the input
-
-Before solving, the tool rejects input that can't produce a sensible plan:
-
-| Problem in the input | What the tool returns |
-|---|---|
-| No warehouses or no stores | `error` |
-| A negative supply, demand or cost | `error` |
-| A cost entry for a city that isn't listed as a warehouse or store | `error` naming the city |
-| A store with no route into it | `error` naming the store |
-| Numbers sent as text (e.g. `"300"`) | Converted to numbers, or `error` if they can't be |
-| Total supply is less than total demand | `infeasible`, with both totals and the shortfall |
-
-The shortage case is caught before solving because the answer is obvious: if there are 1,200 units of demand and only 1,000 units in stock, no plan can work.
-
-### Step 6: The tool builds the problem and solves it
-
-If the input passes, the tool builds the problem in PuLP:
-
-- **One variable per route** that appears in the cost table: the number of units shipped on that route, never below zero. Missing routes get no variable, so they can't be used. Internally the variables get simple names like `x_0_2`, with a lookup back to the real city names, so names with spaces or punctuation (like "New York") work fine.
-- **Goal:** keep the total cost as low as possible, where total cost = the sum over all routes of (cost per unit × units shipped).
-- **Supply rule:** for each warehouse, total units shipped out ≤ its supply.
-- **Demand rule:** for each store, total units shipped in ≥ its demand.
-
-PuLP then runs the CBC solver, which comes bundled with PuLP. CBC returns the plan with the lowest possible cost, not just a good guess. Some problems have more than one plan with the same lowest cost. In that case CBC returns one of them.
-
-### Step 7: The tool returns a structured result
-
-For `us_retail_basic`, the result is:
+and gets back (abridged; every result also carries a `display` block for the page and a `solver` block describing the PuLP call):
 
 ```python
 {
   "status": "optimal",
   "total_cost": 5700.0,
   "shipments": [
-    {"from": "Dallas",  "to": "Houston", "units": 300.0, "unit_cost": 3.0, "route_cost": 900.0},
-    {"from": "Atlanta", "to": "Miami",   "units": 400.0, "unit_cost": 4.0, "route_cost": 1600.0},
-    {"from": "Denver",  "to": "Phoenix", "units": 250.0, "unit_cost": 5.0, "route_cost": 1250.0},
-    {"from": "Denver",  "to": "Houston", "units": 50.0,  "unit_cost": 7.0, "route_cost": 350.0},
-    {"from": "Denver",  "to": "Chicago", "units": 200.0, "unit_cost": 8.0, "route_cost": 1600.0},
+    {"from": "Dallas",  "to": "Houston", "units": 300.0, "unit_cost": 3.0, "cost": 900.0},
+    {"from": "Atlanta", "to": "Miami",   "units": 400.0, "unit_cost": 4.0, "cost": 1600.0},
+    {"from": "Denver",  "to": "Phoenix", "units": 250.0, "unit_cost": 5.0, "cost": 1250.0},
+    {"from": "Denver",  "to": "Houston", "units": 50.0,  "unit_cost": 7.0, "cost": 350.0},
+    {"from": "Denver",  "to": "Chicago", "units": 200.0, "unit_cost": 8.0, "cost": 1600.0},
   ],
   "unused_supply": {"Dallas": 0.0, "Atlanta": 0.0, "Denver": 0.0},
-  "total_supply": 1200.0,
-  "total_demand": 1200.0,
 }
 ```
 
-Only routes that carry goods are listed. If the solver ends in any state other than optimal, the tool returns that state with a plain-language message, never a made-up plan.
+**What-if: Atlanta → Miami closed.** The agent removes that route and re-solves: $8,700, or $3,000 more. Miami loses its $4 route and has to be supplied from Dallas ($9) and Denver ($13), which pulls Dallas away from Houston. This case has more than one plan costing exactly $8,700, so the solver may return a different set of routes each time; the total is always $8,700.
 
-### Step 8: The agent explains the result
-
-The agent turns the tool's output into a short answer:
-
-- **Total cost**: $5,700.
-- **Shipment table**: from, to, units and cost for each route used.
-- **Unused supply**: units left at each warehouse, if any.
-- **A sentence or two on why the plan looks this way**, e.g. *"Atlanta sends everything to Miami because at $4 a unit it's by far the cheapest way to supply Miami. Dallas covers Houston at $3 a unit, and Denver covers the rest."*
-
-If the tool returned `infeasible`, the agent doesn't stop there. It goes to the triage step below. If it returned `error`, the agent explains what's wrong with the data and asks the user to fix it.
-
-### Step 8b: Shortage triage (self-healing)
-
-When total supply is less than total demand, the standard problem has no solution: no plan can give every store everything it needs. Real operations still have to ship something, so the agent:
-
-1. Says plainly that the full problem can't be solved, and by how many units it's short.
-2. Calls `solve_with_shortage_triage(supplies, demands, costs)` with the same data.
-3. Reports how many stores can't be fully served, and for each one: units needed, delivered and short. It names any store that gets nothing at all.
-4. Suggests fixes: how much supply to add, moving stock between warehouses, or agreeing which stores take the cut.
-
-How the triage tool works: each store may be left short, but every unit left undelivered carries a penalty. The penalty is set higher than any possible saving from rerouting, so the solver first delivers every unit it can, and only then picks the cheapest way to do it. That means the shortfall lands on the stores that are most expensive to reach. If the business would rather protect certain stores, the agent says so.
-
-### Step 9: What-if follow-ups
-
-The agent remembers the current scenario for the rest of the conversation. When the user asks a what-if, it edits its copy of the data and calls the solver again with the full, updated data:
-
-| User says | What the agent changes |
-|---|---|
-| "Atlanta to Miami is closed" | Removes that route from `costs` |
-| "Dallas to Houston now costs $5" | Changes that route's cost |
-| "Denver gets 100 more units" | Changes Denver's supply |
-| "Chicago needs 50 fewer" | Changes Chicago's demand |
-
-The agent then compares the new answer with the previous one: how the total cost changed and which routes changed.
-
-**Example: Atlanta→Miami closed.** The solver returns a total of $8,700, which is $3,000 more:
-
-| From | To | Before | After |
-|---|---|---|---|
-| Dallas | Houston | 300 | — |
-| Dallas | Miami | — | 300 |
-| Atlanta | Miami | 400 | — (closed) |
-| Atlanta | Houston | — | 200 |
-| Atlanta | Chicago | — | 200 |
-| Denver | Phoenix | 250 | 250 |
-| Denver | Houston | 50 | 150 |
-| Denver | Miami | — | 100 |
-| Denver | Chicago | 200 | — |
-
-Miami loses its $4 route and now has to be supplied from Dallas ($9) and Denver ($13). That pulls Dallas away from Houston, and the other routes rearrange to cover the gap.
-
-This case has more than one plan that costs exactly $8,700, so the solver may return a different set of routes than the table above (for example, Dallas splitting 150/150 between Houston and Miami). The total cost is always $8,700.
-
-**Example: Atlanta has only 200 units** (with the route reopened). Total supply drops to 1,000 against 1,200 of demand. The solver returns `infeasible`, 200 units short. The agent then runs triage, which delivers all 1,000 units for $4,900: Phoenix, Houston and Chicago are fully served, and Miami gets 200 of its 400 units. The agent says 1 of 4 stores can't be fully served and suggests fixes, such as finding 200 more units for Miami.
+**Shortage: Atlanta has only 200 units.** Total supply is 1,000 against 1,200 of demand, so `solve_transportation_problem` returns `infeasible` (200 short) without calling the solver. `triage_transportation_problem` then delivers all 1,000 units for $4,900: Phoenix, Houston and Chicago are fully served, and Miami gets 200 of its 400.
 
 ---
 
@@ -298,22 +235,33 @@ This case has more than one plan that costs exactly $8,700, so the solver may re
 ```
 logistic_handler/
 ├── README.md
-├── PLAN.md                 # full build plan
+├── PLAN.md                     # original build plan (transportation only)
 ├── requirements.txt
-├── run.sh                  # one-command launcher for the web UI
-├── logistics_agent/        # the ADK agent package
-│   ├── __init__.py
-│   ├── agent.py            # defines root_agent: model, instructions, tools
-│   ├── tools.py            # sample-data tools, formulation, PuLP solver, shortage triage
-│   ├── scenarios.py        # sample scenarios
-│   ├── .env                # your Gemini API key (you create it; ignored by git)
-│   └── .env.example        # template: copy to .env and add your key
+├── run.sh                      # one-command launcher for the web UI
+├── logistics_agent/            # the ADK agent package
+│   ├── agent.py                # root_agent: model, instructions, tools
+│   ├── tools.py                # identify_problem_type, sample tools, the full tool list
+│   ├── places.py               # locate_places: OpenStreetMap Nominatim lookup for the map
+│   ├── samples.py              # sample problems (data + plain-language question)
+│   ├── problems/
+│   │   ├── __init__.py         # PROBLEM_TYPES registry: when to use, data, tools per type
+│   │   ├── common.py           # input checks, the PuLP/CBC call, display blocks
+│   │   ├── transportation.py
+│   │   ├── network_flow.py     # minimum-cost flow and multi-product flow (one engine)
+│   │   └── vehicle_routing.py
+│   ├── .env                    # your Gemini API key (you create it; ignored by git)
+│   └── .env.example            # template: copy to .env and add your key
 ├── web/
-│   ├── server.py           # FastAPI app: runs the agent and streams its steps to the page
-│   └── index.html          # the page: question, formulation, tool calls, result
+│   ├── server.py               # FastAPI app: runs the agent, streams its steps, serves samples
+│   └── index.html              # the page: question, sample pane, formulation, steps, result, diagram/map
 └── tests/
-    └── test_tools.py
+    ├── test_transportation.py
+    ├── test_network_flow.py
+    ├── test_vehicle_routing.py # includes a brute-force check that routes are truly optimal
+    └── test_agent_tools.py     # registry, samples, ADK tool declarations, place lookup
 ```
+
+**Adding a problem type:** write `formulate_*`, `solve_*` and `triage_*` functions in `problems/` that return the same `status` / `stage` / `summary` / `display` fields, add an entry to `PROBLEM_TYPES` and the functions to `SOLVER_TOOLS`, and add a sample or two to `samples.py`. The agent instructions, the page and the sample pane pick it up from the registry.
 
 ## Setup
 
@@ -347,21 +295,21 @@ adk web                    # ADK Dev UI at http://localhost:8000; pick "logistic
 adk run logistics_agent    # chat in the terminal
 ```
 
-### Try this
-
-1. "Hi, what can you do?"
-2. "Show me the sample scenarios." Then: "Load the basic US retail one and solve it." Expect $5,700.
-3. "The Atlanta to Miami route is closed this week. Re-plan." Expect $8,700 and an explanation of the extra $3,000.
-4. "What if Atlanta only has 200 units?" (route reopened) Expect: not enough supply, 200 units short.
-5. Describe your own small network in words and let the agent build the tables, confirm them and solve.
-
 ## Tests
 
 ```bash
 pytest -q
 ```
 
-The tests call the solver directly, without the model, and check the sample results above, the surplus and shortage cases, bad input, and city names with spaces.
+The tests call the tools directly, without the model. They check:
+
+- every sample's result;
+- that minimum-cost flow reproduces the transportation answer;
+- hub balance, lane capacities and product restrictions;
+- each kind of infeasibility and its triage;
+- that vehicle routes match a brute-force search on a small case;
+- bad input;
+- that ADK can build a declaration for every tool.
 
 ## License
 
