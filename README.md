@@ -79,42 +79,29 @@ Then start the app:
 
 To choose the port yourself: `PORT=9000 ./run.sh`. If that port is taken, `run.sh` stops and says what is using it.
 
-### Try this
+### Problem types and samples
 
-The **Sample Scenarios** pane on the right lists two or three scenarios per type. Clicking one puts its text in the question box; press **Run agent**. The sample text never names the problem type, so you can watch the agent work it out: the first step in **Agent steps** is *Identify problem type*, with the agent's reasoning above it.
+Each type has three tools: **formulate** (check data, write out the model), **solve** (exact, PuLP + CBC) and **triage** (best partial plan when there's no full solution). The **Sample Scenarios** pane on the right has the samples below: click one to put it in the question box, then press **Run agent**. The sample text never names the problem type, so you can watch the agent work it out in **Agent steps** (*Identify problem type*, with its reasoning).
 
-| Sample | What to expect |
-|---|---|
-| Transportation → **Warehouses → stores** | Minimum cost **$5,700**. Follow up with *"The Atlanta → Miami route is closed. Re-plan."*: **$8,700**, and the agent explains the extra $3,000. |
-| Transportation → **Shortage → triage** | No solution (200 units short). Triage delivers all 1,000 units for **$4,900**; Miami gets 200 of its 400. |
-| Min-cost flow → **Plants → DCs → stores** | **$2,800**. Both plant lanes run at capacity; 350 units go through Sacramento DC and 400 through Bakersfield DC; 50 units stay at each plant. |
-| Min-cost flow → **Lane bottleneck → triage** | There's enough stock, but the storm-limited lane can't carry it. Triage: San Diego gets 50 of 150; cost **$2,000**. |
-| Multi-product flow → **Frozen + dry, shared trucks** | **$4,600** ($2,400 frozen, $2,200 dry); Omaha → Chicago is full; no frozen goes on the dry-only lane. |
-| Multi-product flow → **Capacity squeeze → triage** | Indianapolis' lane is cut to 150. Triage delivers 750 of 850 units for **$3,800**: Indianapolis gets its dry goods but none of its 100 frozen. Follow up with *"What if the Indianapolis lane goes back up to 250?"* to get back to $4,600. |
-| Vehicle routing → **Delivery vans** | All 8 customers with 3 vans: **90 km, $180**, proven optimal. |
-| Vehicle routing → **Van out of service → triage** | 220 crates, 2 vans of 100: no solution. Triage serves 7 of 8 customers (200 crates), leaves out Pharmacy, **$178.36**. |
-
-Each result has a **Diagram / Map** toggle (see [Seeing the plan](#seeing-the-plan-diagram-and-map)). Expand **Arguments** / **Response** under any tool call to see exactly what the agent sent to the solver and what came back. Each solve step shows the exact open-source PuLP → CBC call, problem size and solve time.
-
-You can also type your own problem, e.g. *"Factory A has 100 units, B has 150. Store X needs 120, Y needs 130. A→X $4, A→Y $6, B→X $5, B→Y $3."*
-
-One question takes about 4-7 model calls (identify, locate places, formulate, solve, maybe triage, explain). On the free Gemini tier that can hit the per-minute limit; the agent waits and retries automatically, and the page says so.
-
----
-
-## The problem types in detail
-
-Each type has three tools: **formulate** (check data, write out the model), **solve** (exact, PuLP + CBC) and **triage**.
-
-| Type | Data | No solution when | Triage reports |
-|---|---|---|---|
-| **Transportation** | Supplies, demands, cost per route | Supply < demand | Stores left short |
-| **Minimum-cost flow** | Supplies, demands, lanes (cost, optional capacity); places only in lanes are hubs | Supply short, or lanes can't carry it | Destinations short, full lanes |
-| **Multi-product flow** | Supplies and demands per product; lanes with shared capacity, optional per-product cost or product limits | A product is short, or shared lanes are full | Product/destination pairs short |
-| **Vehicle routing** | Depot, customer demands (≤ 15), fleet size and capacity, coordinates or distances | Fleet too small, or an order exceeds a vehicle | Customers left out, and why |
+| Type | Data | No solution when | Sample | What to expect |
+|---|---|---|---|---|
+| **Transportation** | Supplies, demands, cost per route | Supply < demand | **Warehouses → stores** | **$5,700**. Follow up with *"The Atlanta → Miami route is closed. Re-plan."*: **$8,700** |
+| | | | **Shortage → triage** | 200 units short. Triage delivers all 1,000 for **$4,900**; Miami gets 200 of 400 |
+| **Minimum-cost flow** | Supplies, demands, lanes (cost, optional capacity); places only in lanes are hubs | Supply short, or lanes can't carry it | **Plants → DCs → stores** | **$2,800**; both plant lanes full; 350 units via Sacramento DC, 400 via Bakersfield DC |
+| | | | **Lane bottleneck → triage** | Enough stock, but the storm-limited lane can't carry it. Triage: San Diego gets 50 of 150, **$2,000** |
+| **Multi-product flow** | Supplies and demands per product; lanes with shared capacity, optional per-product cost or product limits | A product is short, or shared lanes are full | **Frozen + dry, shared trucks** | **$4,600** ($2,400 frozen, $2,200 dry); no frozen on the dry-only lane |
+| | | | **Capacity squeeze → triage** | Triage delivers 750 of 850 for **$3,800**; Indianapolis gets no frozen. Follow up with *"What if the Indianapolis lane goes back up to 250?"*: $4,600 |
+| **Vehicle routing** | Depot, customer demands (≤ 15), fleet size and capacity, coordinates or distances | Fleet too small, or an order exceeds a vehicle | **Delivery vans** | 3 vans, all 8 customers: **90 km, $180**, proven optimal |
+| | | | **Van out of service → triage** | 220 crates for 2 × 100. Triage serves 7 of 8 (200 crates), leaves out Pharmacy, **$178.36** |
 
 - **Triage** puts a penalty on every undelivered unit that outweighs any rerouting saving, so the solver delivers as much as possible, then minimizes cost. Shortfalls land on whatever is most expensive to serve.
 - **Vehicle routing** is a mixed-integer model with a 30-second solver limit; results say whether the plan is proven optimal.
+
+Each result has a **Diagram / Map** toggle (see [Seeing the plan](#seeing-the-plan-diagram-and-map)). Expand **Arguments** / **Response** under any tool call to see exactly what the agent sent to the solver and what came back; each solve step shows the PuLP → CBC call, problem size and solve time.
+
+You can also type your own problem, e.g. *"Factory A has 100 units, B has 150. Store X needs 120, Y needs 130. A→X $4, A→Y $6, B→X $5, B→Y $3."*
+
+One question takes about 4-7 model calls. On the free Gemini tier that can hit the per-minute limit; the agent waits and retries automatically, and the page says so.
 
 ---
 
