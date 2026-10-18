@@ -74,15 +74,15 @@ To choose the port yourself: `PORT=9000 ./run.sh`. If that port is taken, `run.s
 
 Each type has three tools: **formulate** (check data, write out the model), **solve** (exact, PuLP + CBC) and **triage** (best partial plan when there's no full solution). The **Sample Scenarios** pane on the right has the samples below: click one to put it in the question box, then press **Run agent**. The sample text never names the problem type, so you can watch the agent work it out in **Agent steps** (*Identify problem type*, with its reasoning).
 
-| Type | Data | No solution → automatic triage | Sample | What to expect |
+| Data | Type | No solution → automatic triage | Sample | What to expect |
 |---|---|---|---|---|
-| **Transportation** | Supplies, demands, cost per route | Supply < demand → ships every unit available at least cost, names stores left short | **Warehouses → stores** | **$5,700**. Follow up with *"The Atlanta → Miami route is closed. Re-plan."*: **$8,700** |
+| Supplies, demands, cost per route | **Transportation** | Supply < demand → ships every unit available at least cost, names stores left short | **Warehouses → stores** | **$5,700**. Follow up with *"The Atlanta → Miami route is closed. Re-plan."*: **$8,700** |
 | | | | **Shortage → triage** | 200 units short. Triage delivers all 1,000 for **$4,900**; Miami gets 200 of 400 |
-| **Minimum-cost flow** | Supplies, demands, lanes (cost, optional capacity); places only in lanes are hubs | Supply short, or lanes can't carry it → delivers as much as the network allows, names short destinations and full lanes | **Plants → DCs → stores** | **$2,800**; both plant lanes full; 350 units via Sacramento DC, 400 via Bakersfield DC |
+| Supplies, demands, lanes (cost, optional capacity); places only in lanes are hubs | **Minimum-cost flow** | Supply short, or lanes can't carry it → delivers as much as the network allows, names short destinations and full lanes | **Plants → DCs → stores** | **$2,800**; both plant lanes full; 350 units via Sacramento DC, 400 via Bakersfield DC |
 | | | | **Lane bottleneck → triage** | Enough stock, but the storm-limited lane can't carry it. Triage: San Diego gets 50 of 150, **$2,000** |
-| **Multi-product flow** | Supplies and demands per product; lanes with shared capacity, optional per-product cost or product limits | A product is short, or shared lanes are full → delivers as much of every product as fits, names short product/destination pairs | **Frozen + dry, shared trucks** | **$4,600** ($2,400 frozen, $2,200 dry); no frozen on the dry-only lane |
+| Supplies and demands per product; lanes with shared capacity, optional per-product cost or product limits | **Multi-product flow** | A product is short, or shared lanes are full → delivers as much of every product as fits, names short product/destination pairs | **Frozen + dry, shared trucks** | **$4,600** ($2,400 frozen, $2,200 dry); no frozen on the dry-only lane |
 | | | | **Capacity squeeze → triage** | Triage delivers 750 of 850 for **$3,800**; Indianapolis gets no frozen. Follow up with *"What if the Indianapolis lane goes back up to 250?"*: $4,600 |
-| **Vehicle routing** | Depot, customer demands (≤ 15), fleet size and capacity, coordinates or distances | Fleet too small, or an order exceeds a vehicle → serves as many units as the fleet can carry, names customers left out and why | **Delivery vans** | 3 vans, all 8 customers: **90 km, $180**, proven optimal |
+| Depot, customer demands (≤ 15), fleet size and capacity, coordinates or distances | **Vehicle routing** | Fleet too small, or an order exceeds a vehicle → serves as many units as the fleet can carry, names customers left out and why | **Delivery vans** | 3 vans, all 8 customers: **90 km, $180**, proven optimal |
 | | | | **Van out of service → triage** | 220 crates for 2 × 100. Triage serves 7 of 8 (200 crates), leaves out Pharmacy, **$178.36** |
 
 - **Triage** puts a penalty on every undelivered unit that outweighs any rerouting saving, so the solver delivers as much as possible, then minimizes cost. Shortfalls land on whatever is most expensive to serve.

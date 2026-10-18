@@ -28,6 +28,7 @@ PROBLEM_TYPES = {
     "transportation": {
         "label": "Transportation",
         "short": "One product shipped straight from sources to destinations at a cost per unit.",
+        "input": "Supplies, demands, cost per route",
         "use_when": "Goods go directly from supply points (warehouses, plants) to demand points (stores, customers). "
                     "One product, cost per unit on each route, no hubs in between, no lane capacities.",
         "data_needed": ["supply at each source", "demand at each destination",
@@ -39,6 +40,7 @@ PROBLEM_TYPES = {
     "min_cost_flow": {
         "label": "Minimum-cost flow (transshipment)",
         "short": "One product moving through a network with hubs and lane capacities.",
+        "input": "Supplies, demands, lanes (cost, optional capacity); places only in lanes are hubs",
         "use_when": "One product, but goods may pass through intermediate points (distribution centers, cross-docks, "
                     "ports), and/or lanes have capacity limits. Also fine for a transportation problem with lane limits.",
         "data_needed": ["supply at each source", "demand at each destination",
@@ -52,6 +54,8 @@ PROBLEM_TYPES = {
     "multi_commodity_flow": {
         "label": "Multi-product flow",
         "short": "Several products sharing the same lanes and lane capacities.",
+        "input": "Supplies and demands per product; lanes with shared capacity, optional per-product cost or product "
+                 "limits",
         "use_when": "Two or more distinct products (e.g. frozen and dry goods, product SKUs) each with their own "
                     "supplies and demands, moving over shared lanes whose capacity limits all products together; "
                     "costs may differ by product and some lanes may carry only some products.",
@@ -66,6 +70,7 @@ PROBLEM_TYPES = {
     "vehicle_routing": {
         "label": "Vehicle routing",
         "short": "Vehicles leave a depot, visit customers in order, and return, within capacity.",
+        "input": f"Depot, customer demands (≤ {MAX_CUSTOMERS}), fleet size and capacity, coordinates or distances",
         "use_when": "Deliveries (or pickups) made by a fleet of vehicles that start and end at one depot and visit "
                     "several customers each, so the order of stops matters; each vehicle has a capacity. "
                     f"Up to {MAX_CUSTOMERS} customers.",

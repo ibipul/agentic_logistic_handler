@@ -36,7 +36,8 @@ SAMPLES = [
     for name, sample in SAMPLES_BY_NAME.items()
     if sample["problem_type"] == key
 ]
-TYPES = {key: {"label": t["label"], "short": t["short"], "tools": t["tools"]} for key, t in PROBLEM_TYPES.items()}
+TYPES = {key: {"label": t["label"], "short": t["short"], "input": t["input"], "tools": t["tools"]}
+         for key, t in PROBLEM_TYPES.items()}
 
 session_service = InMemorySessionService()
 runner = Runner(agent=root_agent, app_name=APP_NAME, session_service=session_service)
