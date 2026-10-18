@@ -11,20 +11,18 @@ When the problem has no solution as stated (not enough stock, a lane that can't 
 ```mermaid
 flowchart LR
     Q[Question in<br/>plain language] --> I[Identify<br/>problem type]
-    I --> P[Locate places<br/>OpenStreetMap]
     I --> F[Formulate<br/>the model]
-    P --> F
     F --> S[Exact solve<br/>PuLP / CBC]
     S -->|solvable| R[Plan + cost<br/>+ explanation]
-    S -->|no solution| T[Triage:<br/>best partial plan]
+    S -->|no solution| T[Automatic triage:<br/>best partial plan]
     T --> R
-    R --> V[Visualize]
-    V --> D[Diagram<br/>Cytoscape.js]
-    V --> M[Map<br/>Leaflet + OSM]
+    R --> V[Visualize result:<br/>Diagram or Map]
+    I -.->|real place names| P[Locate places<br/>OpenStreetMap]
+    P -.-> V
     R -->|what-if follow-up| F
 ```
 
-Place lookup runs only when the problem names real places; it enables the map view.
+The plan is visualized only at the end, with the result: a diagram (Cytoscape.js), or a map (Leaflet + OpenStreetMap) when the problem names real places, whose coordinates are looked up after the type is identified.
 
 The Gemini agent handles the conversation, picks the problem type and decides which tool to call; Python tools do all the math. Every number in an answer comes from the user or a tool.
 
