@@ -1,5 +1,15 @@
 # Agentic Logistic Handler
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Google ADK 2.12.0](https://img.shields.io/badge/Google%20ADK-2.12.0-4285F4?logo=google&logoColor=white)](https://adk.dev/)
+[![Gemini 3.8 Flash](https://img.shields.io/badge/Gemini-3.8%20Flash-8E75B2?logo=googlegemini&logoColor=white)](https://ai.google.dev/gemini-api/docs/models)
+[![PuLP 3.3.2 + CBC](https://img.shields.io/badge/PuLP-3.3.2%20%2B%20CBC-2E7D32)](https://coin-or.github.io/pulp/)
+[![FastAPI 0.141.1](https://img.shields.io/badge/FastAPI-0.141.1-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Cytoscape.js 3.28.1](https://img.shields.io/badge/Cytoscape.js-3.28.1-F7DF1E)](https://js.cytoscape.org/)
+[![Leaflet 1.9.4](https://img.shields.io/badge/Leaflet-1.9.4-199900?logo=leaflet&logoColor=white)](https://leafletjs.com/)
+[![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-Nominatim%20%2B%20tiles-7EBC6F?logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org/)
+
 An agent that solves logistics optimization problems described in plain language.
 
 You describe what needs to move where: warehouses and stores, plants and distribution centers, product lines sharing trucks, or a fleet of delivery vans. A chat agent built with Google's [Agent Development Kit (ADK)](https://adk.dev/get-started/python/) works out **which kind of optimization problem it is**, writes it out as a model, and solves it exactly with [PuLP](https://coin-or.github.io/pulp/), a free linear-programming library, and its bundled CBC solver. It then explains the plan, draws it as a network diagram or on a map, and re-plans when you ask "what if?"
