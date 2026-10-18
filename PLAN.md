@@ -260,7 +260,7 @@ Samples (expected results verified with PuLP 3.3.2):
   - `GET /api/samples` returns the samples (grouped in registry order), the problem types with labels and tool names, and the model name.
   - `POST /api/run` runs the agent in an in-memory ADK session and streams newline-delimited JSON events: `session`, `thought`, `tool_call`, `tool_result`, `text`, `error`, `done`.
   - The `.env` key overrides any Gemini settings already in the shell.
-- **Page layout:** the question box and three sections (problem type & formulation, agent steps & tool calls, result) on the left; a **Sample problems** pane on the right, grouped by type. Clicking a sample fills the question box; the user presses **Run agent**. On narrow screens the pane moves above the question.
+- **Page layout:** the question box and three sections (problem type & formulation, agent steps & tool calls, result) on the left; a **Sample Scenarios** pane on the right, grouped by type; each sample is shown in cobalt blue. Clicking a sample fills the question box; the user presses **Run agent**. On narrow screens the pane moves above the question.
 - **Agent steps:** each tool call shows its label, a status badge and summary, what ran (the PuLP/CBC call, or "no solver call"), and expandable arguments and response. Reasoning summaries appear before the call they led to.
 - **Formulation section:** problem-type badge with the agent's reasoning, the formulate tool's banners and tables, the model text, and the network.
 - **Result section:** banners, stats, tables and network from the latest solve or triage result (after triage, the solve's "no solution" banner stays on top), then the agent's explanation.

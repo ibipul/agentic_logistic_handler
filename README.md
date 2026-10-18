@@ -74,7 +74,7 @@ To choose the port yourself: `PORT=9000 ./run.sh`. If that port is taken, `run.s
 
 ### Try this
 
-The **Sample problems** pane on the right lists two or three problems per type. Clicking one puts its text in the question box; press **Run agent**. The sample text never names the problem type, so you can watch the agent work it out: the first step in **Agent steps** is *Identify problem type*, with the agent's reasoning above it.
+The **Sample Scenarios** pane on the right lists two or three scenarios per type. Clicking one puts its text in the question box; press **Run agent**. The sample text never names the problem type, so you can watch the agent work it out: the first step in **Agent steps** is *Identify problem type*, with the agent's reasoning above it.
 
 | Sample | What to expect |
 |---|---|

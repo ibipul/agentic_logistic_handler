@@ -14,13 +14,13 @@
     --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6677; --line: #e1e4ea;
     --accent: #2f6fde; --accent-soft: #e8f0fd; --ok: #1f8a4c; --ok-soft: #e5f5ec;
     --warn: #b25e09; --warn-soft: #fdf1e3; --bad: #c0362c; --bad-soft: #fbe9e7;
-    --hub: #7a4fc9; --code: #f1f3f6; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --hub: #7a4fc9; --cobalt: #0047ab; --code: #f1f3f6; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #12151b; --card: #1a1e26; --text: #e4e7ec; --muted: #9aa3b2; --line: #2b313c;
       --accent: #6d9ff0; --accent-soft: #1d2a40; --ok: #5cc98a; --ok-soft: #173024;
-      --warn: #e9a352; --warn-soft: #34261a; --bad: #ef7b70; --bad-soft: #3a1f1d; --hub: #b18cf2; --code: #222733;
+      --warn: #e9a352; --warn-soft: #34261a; --bad: #ef7b70; --bad-soft: #3a1f1d; --hub: #b18cf2; --cobalt: #7aa7ff; --code: #222733;
     }
   }
   * { box-sizing: border-box; }
@@ -102,12 +102,12 @@
   aside .group { margin-top: 14px; }
   aside .group h3 { margin: 0 0 2px; font-size: 13px; }
   aside .group p { margin: 0 0 6px; }
-  .sample { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  .sample { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--bg); color: var(--cobalt);
             border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; font: inherit; }
   .sample:hover { border-color: var(--accent); }
   .sample.active { border-color: var(--accent); background: var(--accent-soft); }
   .sample b { display: block; font-size: 14px; }
-  .sample span { color: var(--muted); font-size: 12px; }
+  .sample span { color: var(--cobalt); opacity: .85; font-size: 12px; }
 
   /* network view */
   .net { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -167,8 +167,8 @@
       </section>
     </main>
 
-    <aside class="card" aria-label="Sample problems">
-      <h2>Sample problems</h2>
+    <aside class="card" aria-label="Sample scenarios">
+      <h2>Sample Scenarios</h2>
       <p class="muted">Click one to put it in the question box, then press <b>Run agent</b>. The text doesn't name
         the problem type: the agent works it out.</p>
       <div id="samples"><p class="placeholder">Loading…</p></div>
