@@ -220,19 +220,23 @@ Formats are `text`, `number`, `money` and `pct`; a `null` cell shows as "—". N
   - A failed lookup returns an error the agent can ignore; the page then shows only the diagram.
 - **`samples.py`**: each sample has `problem_type`, a short `label` and `description`, a plain-language `question` that **doesn't name the problem type**, and the matching structured `data`. Keep both in step: the tests solve from `data`; the page sends `question`.
 
+Each sample's places stay within one US state, and the question names the state, so `locate_places` finds the right places and the map view shows them together. Every place was checked against Nominatim.
+
 Samples (expected results verified with PuLP 3.3.2):
 
-| Sample | Type | Expected |
-|---|---|---|
-| `us_retail_basic` | transportation | optimal, $5,700 |
-| `us_retail_surplus` | transportation | optimal, $5,700, 200 unused at Denver |
-| `us_retail_shortage` | transportation | infeasible (200 short) → triage: 1,000 of 1,200 delivered, $4,900, Miami 200 short |
-| `ca_crossdock` | min-cost flow | optimal, $2,800; bottlenecks Reno Plant → Sacramento DC and Fresno Plant → Bakersfield DC; hub throughput 350 / 400 |
-| `ca_bottleneck` | min-cost flow | infeasible (reason `network`) → triage: 500 of 600 delivered, $2,000, San Diego 100 short |
-| `midwest_two_lines` | multi-product flow | optimal, $4,600 |
-| `midwest_squeeze` | multi-product flow | infeasible → triage: 750 of 850 delivered, $3,800, Indianapolis 100 Frozen short |
-| `city_vans` | vehicle routing | optimal, 3 vans, 90 km, $180 |
-| `city_vans_short` | vehicle routing | infeasible (220 crates, 2 × 100) → triage: 200 delivered, Pharmacy left out, $178.36 |
+| Sample | Type | Places | Expected |
+|---|---|---|---|
+| `us_retail_basic` | transportation | Texas | optimal, $5,700 |
+| `us_retail_surplus` | transportation | Texas | optimal, $5,700, 200 unused at El Paso |
+| `us_retail_shortage` | transportation | Texas | infeasible (200 short) → triage: 1,000 of 1,200 delivered, $4,900, Corpus Christi 200 short |
+| `ca_crossdock` | min-cost flow | California | optimal, $2,800; bottlenecks Redding Plant → Sacramento DC and Fresno Plant → Bakersfield DC; hub throughput 350 / 400 |
+| `ca_bottleneck` | min-cost flow | California | infeasible (reason `network`) → triage: 500 of 600 delivered, $2,000, San Diego 100 short |
+| `midwest_two_lines` | multi-product flow | Illinois | optimal, $4,600 |
+| `midwest_squeeze` | multi-product flow | Illinois | infeasible → triage: 750 of 850 delivered, $3,800, Champaign 100 Frozen short |
+| `city_vans` | vehicle routing | California (East Bay) | optimal (proven in about 1.5 s), 3 trucks, 130.42 km, $234.76 with the stored coordinates |
+| `city_vans_short` | vehicle routing | California (East Bay) | infeasible (275 crates, 2 × 130) → triage (proven in about 15 s): 255 delivered, Castro Valley left out, $229.03 |
+
+Vehicle routing on real geography gets slow fast: at 10 or more customers, CBC didn't prove the best plan within 30 s in testing, so the samples stay at 8-9 customers.
 
 ### Step 6: The agent (`agent.py`)
 
@@ -276,8 +280,8 @@ Samples (expected results verified with PuLP 3.3.2):
 Run with `pytest -q`. The tests call the tools directly, without the model:
 
 1. **Transportation:**
-   - `us_retail_basic`: cost $5,700, with exactly the shipments Dallas→Houston 300, Atlanta→Miami 400, Denver→Phoenix 250, Denver→Houston 50, Denver→Chicago 200.
-   - Atlanta→Miami closed: $8,700.
+   - `us_retail_basic`: cost $5,700, with exactly the shipments Fort Worth→Waco 300, Houston→Corpus Christi 400, El Paso→Midland 250, El Paso→Waco 50, El Paso→San Antonio 200.
+   - Houston→Corpus Christi closed: $8,700.
    - Surplus: 200 units unused.
    - Shortage: infeasible, 200 short. Triage delivers 1,000.
    - Triage on the balanced problem: matches the plain solve.
@@ -293,7 +297,7 @@ Run with `pytest -q`. The tests call the tools directly, without the model:
    - Bad lanes.
    - Multi-product:
      - $4,600, shared capacity respected, no frozen goods on the dry-only lane, costs per product add up;
-     - the squeeze is infeasible, then triage leaves Indianapolis short by 100;
+     - the squeeze is infeasible, then triage leaves Champaign short by 100;
      - a shortage is reported per product;
      - the formulation has 13 variables.
 3. **Vehicle routing:**
@@ -312,7 +316,7 @@ Run with `pytest -q`. The tests call the tools directly, without the model:
    - The sample tools.
    - `locate_places` maps names and survives lookup failures (the network is mocked).
 
-Some problems have more than one plan with the same lowest cost (e.g. Atlanta→Miami closed). For those, assert on total cost and on constraints being satisfied, not on the exact routes.
+Some problems have more than one plan with the same lowest cost (e.g. Houston→Corpus Christi closed). For those, assert on total cost and on constraints being satisfied, not on the exact routes.
 
 ### Step 9: Run
 
@@ -354,11 +358,11 @@ The agent instructions, `identify_problem_type`, the page's labels and the sampl
 
 ## 7. Demo script
 
-1. Click **Transportation → Warehouses → stores** → Run. Expect: type *Transportation*, $5,700. Follow up: *"The Atlanta → Miami route is closed. Re-plan."* Expect $8,700 and the agent explaining the extra $3,000.
+1. Click **Transportation → Warehouses → stores** → Run. Expect: type *Transportation*, $5,700. Follow up: *"The Houston → Corpus Christi route is closed. Re-plan."* Expect $8,700 and the agent explaining the extra $3,000.
 2. Click **Min-cost flow → Plants → DCs → stores** → Run. Expect: type *Minimum-cost flow*, places located on the map, $2,800, two lanes at capacity (orange in the diagram). Toggle **Map**.
 3. Click **Min-cost flow → Lane bottleneck → triage** → Run. Expect: "enough supply in total, but the lanes can't carry it", then triage with San Diego 100 short.
-4. Click **Multi-product flow → Capacity squeeze → triage** → Run. Expect triage with Indianapolis 100 Frozen short ($3,800). Follow up: *"What if the Indianapolis lane goes back up to 250?"* Expect $4,600 and a comparison, without re-identifying the type.
-5. Click **Vehicle routing → Van out of service → triage** → Run. Expect: no full solution (220 crates for 200 of capacity), triage leaves out Pharmacy, routes drawn per van, Pharmacy in red.
+4. Click **Multi-product flow → Capacity squeeze → triage** → Run. Expect triage with Champaign 100 Frozen short ($3,800). Follow up: *"What if the Champaign lane goes back up to 250?"* Expect $4,600 and a comparison, without re-identifying the type.
+5. Click **Vehicle routing → Truck in the shop → triage** → Run. Expect: no full solution (275 crates for 260 of capacity), triage leaves out one 20-crate stop, routes drawn per truck on the East Bay map, the skipped stop in red.
 6. Freeform: describe a small problem in words and watch the agent pick the type.
 
 ## 8. Acceptance criteria
@@ -366,7 +370,7 @@ The agent instructions, `identify_problem_type`, the page's labels and the sampl
 - [x] `pytest -q` passes (36 tests).
 - [ ] `adk web` lists `logistics_agent` and it answers (not yet re-checked since the generalization).
 - [x] Each sample's data produces the expected result in section 5, step 5 (checked by the tests, without the model).
-- [ ] Through the live agent, every sample is identified as the right type and solved with the tools. Checked so far: Plants → DCs → stores, Capacity squeeze (with a follow-up that re-solved without re-identifying), Delivery vans, Van out of service. The other five are still to run.
+- [ ] Through the live agent, every sample is identified as the right type and solved with the tools. Checked so far (before the samples moved to one state each): Plants → DCs → stores, Capacity squeeze (with a follow-up that re-solved without re-identifying), and the old grid-based vehicle-routing samples; the East Bay delivery problem was also run live as a custom question. The renamed samples are still to run.
 - [x] Diagram renders for every type; map renders when places are real; page works at phone width with no console errors.
 - [x] `.env` is git-ignored; no API key in any committed file or in console output.
 - [x] README lets a new person run it from scratch.

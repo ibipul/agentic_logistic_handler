@@ -48,7 +48,8 @@ def test_sample_serves_everyone_within_capacity():
     result = solve_vehicle_routing(**d)
     assert result["status"] == "optimal"
     assert check_routes(result, d) == set(d["demands"])
-    assert result["total_cost"] == round(2 * result["total_distance"], 2)
+    assert abs(result["total_cost"] - d["cost_per_distance"] * result["total_distance"]) < 0.05
+    assert result["proven_optimal"] is True
 
 
 def test_matches_brute_force_on_small_instance():
@@ -70,8 +71,8 @@ def test_fleet_too_small_is_infeasible_then_triaged():
     assert triage["status"] == "partial"
     served = check_routes(triage, d)
     assert served == set(triage["customers_served"])
-    # 220 crates for 200 crates of vans: the best plan leaves exactly 20 undelivered.
-    assert triage["units_delivered"] == 200
+    # 275 crates for 2 × 130 = 260 of trucks; the smallest order is 20, so the best possible is 275 − 20 = 255.
+    assert triage["units_delivered"] == 255
 
 
 def test_order_bigger_than_a_vehicle():

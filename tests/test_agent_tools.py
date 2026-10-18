@@ -41,7 +41,7 @@ def test_sample_tools():
     names = {s["name"] for s in list_sample_problems()["samples"]}
     assert {"us_retail_basic", "ca_crossdock", "midwest_two_lines", "city_vans"} <= names
     loaded = load_sample_problem("us_retail_basic")
-    assert loaded["problem_type"] == "transportation" and loaded["data"]["supplies"]["Denver"] == 500
+    assert loaded["problem_type"] == "transportation" and loaded["data"]["supplies"]["El Paso"] == 500
     assert load_sample_problem("nope")["status"] == "error"
 
 

@@ -28,22 +28,22 @@ def test_basic_optimal():
     assert result["status"] == "optimal"
     assert result["total_cost"] == 5700
     assert plan(result) == {
-        ("Dallas", "Houston", 300),
-        ("Atlanta", "Miami", 400),
-        ("Denver", "Phoenix", 250),
-        ("Denver", "Houston", 50),
-        ("Denver", "Chicago", 200),
+        ("Fort Worth", "Waco", 300),
+        ("Houston", "Corpus Christi", 400),
+        ("El Paso", "Midland", 250),
+        ("El Paso", "Waco", 50),
+        ("El Paso", "San Antonio", 200),
     }
 
 
 def test_closed_route():
     s, d, c = data("us_retail_basic")
-    del c["Atlanta"]["Miami"]
+    del c["Houston"]["Corpus Christi"]
     result = solve_transportation_problem(s, d, c)
     assert result["status"] == "optimal"
     assert result["total_cost"] == 8700
     assert_feasible(result, s, d)
-    assert ("Atlanta", "Miami") not in {(f, t) for f, t, _ in plan(result)}
+    assert ("Houston", "Corpus Christi") not in {(f, t) for f, t, _ in plan(result)}
 
 
 def test_surplus():
@@ -93,10 +93,10 @@ def test_triage_prefers_delivering_over_saving_cost():
 
 def test_bad_input():
     s, d, c = data("us_retail_basic")
-    c["Dallas"]["Phoenix"] = -1
+    c["Fort Worth"]["Midland"] = -1
     assert solve_transportation_problem(s, d, c)["status"] == "error"
     s, d, c = data("us_retail_basic")
-    c["Dallas"]["Atlantis"] = 3
+    c["Fort Worth"]["Atlantis"] = 3
     assert solve_transportation_problem(s, d, c)["status"] == "error"
     assert solve_transportation_problem({"A": "ten"}, {"B": 1}, {"A": {"B": 1}})["status"] == "error"
 
@@ -123,7 +123,7 @@ def test_formulation():
     assert len(supply["lines"]) == 3 and len(demand["lines"]) == 4
     assert "(12 variables)" in f["model"]["variables"]
     assert f["balance"] == "shortage"
-    assert f["display"]["tables"][0]["rows"][0][0] == "Dallas"
+    assert f["display"]["tables"][0]["rows"][0][0] == "Fort Worth"
 
 
 def test_network_marks_used_routes():
