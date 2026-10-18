@@ -267,7 +267,7 @@ Samples (expected results verified with PuLP 3.3.2):
 - **Result section:** banners, stats, tables and network from the latest solve or triage result (after triage, the solve's "no solution" banner stays on top), then the agent's explanation.
 - **Network view:** a **Diagram / Map** toggle.
   - Diagram: [Cytoscape.js](https://js.cytoscape.org/). Flow layouts go sources → hubs → destinations, left to right. Vehicle routes are drawn at their coordinates, scaled so labels stay readable. Line width shows units; orange means a lane is at capacity; dashed means unused; each vehicle gets its own color.
-  - Map: [Leaflet](https://leafletjs.com/) with OpenStreetMap tiles and attribution. It's enabled only when every place has coordinates, either from the node itself or from a `locate_places` result the page remembers. The map is resized before it's fitted to the places.
+  - Map: [Leaflet](https://leafletjs.com/) with OpenStreetMap tiles and attribution, faded to grey with a CSS filter so the routes stand out (no API key needed; CARTO's minimal basemap now requires one). It's enabled only when every place has coordinates, either from the node itself or from a `locate_places` result the page remembers. The map is resized before it's fitted to the places.
 - **Libraries:** load only from cdnjs, with exact versions (marked 12.0.2, cytoscape 3.28.1, leaflet 1.9.4).
 - **Follow-ups:** the session continues. The formulation stays on screen until a new one arrives, and **New problem** starts a fresh session.
 
