@@ -83,7 +83,8 @@ To choose the port yourself: `PORT=9000 ./run.sh`. If that port is taken, `run.s
 
 </details>
 
-### Problem types and samples
+<details>
+<summary><b>Problem types and samples</b> (click to show)</summary>
 
 Each type has three tools: **formulate** (check data, write out the model), **solve** (exact, PuLP + CBC) and **triage** (best partial plan when there's no full solution). The **Sample Scenarios** pane on the right has the samples below: click one to put it in the question box, then press **Run agent**. The sample text never names the problem type, so you can watch the agent work it out in **Agent steps** (*Identify problem type*, with its reasoning).
 
@@ -106,6 +107,8 @@ Each result has a **Diagram / Map** toggle (details under [Project layout](#proj
 You can also type your own problem, e.g. *"Factory A has 100 units, B has 150. Store X needs 120, Y needs 130. A→X $4, A→Y $6, B→X $5, B→Y $3."*
 
 One question takes about 4-7 model calls. On the free Gemini tier that can hit the per-minute limit; the agent waits and retries automatically, and the page says so.
+
+</details>
 
 ---
 
