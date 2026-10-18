@@ -64,7 +64,7 @@ async def samples():
 # Gemini's thought summaries sometimes open with a line about the summary itself
 # ("Okay, here's my interpretation of that thought process, ..."). Drop that line; keep the reasoning.
 _SUMMARY_PREAMBLE = re.compile(
-    r"^\s*(okay|ok|alright)?[,\s]*here'?s\b[^\n]*\b(summary|interpretation|thought process|thinking)\b[^\n]*\n+",
+    r"^\s*(okay|ok|alright)?[,\s]*here'?s\b[^\n]*\b(summary|interpretation|thought process|thinking|take|thoughts)\b[^\n]*\n+",
     re.IGNORECASE,
 )
 
