@@ -22,43 +22,21 @@ from google.adk.sessions import InMemorySessionService  # noqa: E402
 from google.genai import types  # noqa: E402
 
 from logistics_agent.agent import MODEL, root_agent  # noqa: E402
+from logistics_agent.problems import PROBLEM_TYPES  # noqa: E402
+from logistics_agent.samples import SAMPLES as SAMPLES_BY_NAME  # noqa: E402
 
 APP_NAME = "logistics_web"
 USER_ID = "web_user"
 
-SAMPLE_QUESTIONS = [
-    {
-        "label": "Classic (balanced)",
-        "text": (
-            "I run 3 warehouses: Dallas has 300 units, Atlanta 400, Denver 500. "
-            "My stores need: Phoenix 250, Houston 350, Miami 400, Chicago 200.\n"
-            "Cost per unit:\n"
-            "- Dallas → Phoenix 8, Houston 3, Miami 9, Chicago 7\n"
-            "- Atlanta → Phoenix 12, Houston 6, Miami 4, Chicago 6\n"
-            "- Denver → Phoenix 5, Houston 7, Miami 13, Chicago 8\n"
-            "What's the cheapest way to ship?"
-        ),
-    },
-    {
-        "label": "Shortage → triage",
-        "text": (
-            "Atlanta only has 200 units this week. Dallas has 300 and Denver 500. "
-            "Stores still need: Phoenix 250, Houston 350, Miami 400, Chicago 200.\n"
-            "Cost per unit:\n"
-            "- Dallas → Phoenix 8, Houston 3, Miami 9, Chicago 7\n"
-            "- Atlanta → Phoenix 12, Houston 6, Miami 4, Chicago 6\n"
-            "- Denver → Phoenix 5, Houston 7, Miami 13, Chicago 8\n"
-            "Plan the shipments."
-        ),
-    },
-    {
-        "label": "Closed route",
-        "text": (
-            "Load the basic US retail sample scenario, but the Atlanta → Miami route is closed this week. "
-            "Plan the cheapest shipments."
-        ),
-    },
+# Sample problems for the page's side pane, grouped by problem type in registry order.
+SAMPLES = [
+    {"name": name, "problem_type": sample["problem_type"], "label": sample["label"],
+     "description": sample["description"], "text": sample["question"]}
+    for key in PROBLEM_TYPES
+    for name, sample in SAMPLES_BY_NAME.items()
+    if sample["problem_type"] == key
 ]
+TYPES = {key: {"label": t["label"], "short": t["short"], "tools": t["tools"]} for key, t in PROBLEM_TYPES.items()}
 
 session_service = InMemorySessionService()
 runner = Runner(agent=root_agent, app_name=APP_NAME, session_service=session_service)
@@ -72,14 +50,14 @@ class RunRequest(BaseModel):
 
 @app.get("/")
 async def index():
-    # Prefill the question box with the classic sample on first load, without waiting for JavaScript.
+    # Prefill the question box with the first sample on first load, without waiting for JavaScript.
     page = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(page.replace("{{DEFAULT_QUESTION}}", html.escape(SAMPLE_QUESTIONS[0]["text"])))
+    return HTMLResponse(page.replace("{{DEFAULT_QUESTION}}", html.escape(SAMPLES[0]["text"])))
 
 
 @app.get("/api/samples")
 async def samples():
-    return JSONResponse({"samples": SAMPLE_QUESTIONS, "model": MODEL})
+    return JSONResponse({"samples": SAMPLES, "problem_types": TYPES, "model": MODEL})
 
 
 # Gemini's thought summaries sometimes open with a line about the summary itself

@@ -1,15 +1,13 @@
-from logistics_agent.scenarios import get_scenario
-from logistics_agent.tools import (
+from logistics_agent.problems.transportation import (
     formulate_transportation_problem,
-    list_sample_scenarios,
-    load_sample_scenario,
     solve_transportation_problem,
-    solve_with_shortage_triage,
+    triage_transportation_problem,
 )
+from logistics_agent.samples import get_sample
 
 
 def data(name):
-    sc = get_scenario(name)
+    sc = get_sample(name)["data"]
     return sc["supplies"], sc["demands"], sc["costs"]
 
 
@@ -66,7 +64,7 @@ def test_shortage_is_infeasible():
 
 def test_shortage_triage_delivers_all_supply():
     s, d, c = data("us_retail_shortage")
-    result = solve_with_shortage_triage(s, d, c)
+    result = triage_transportation_problem(s, d, c)
     assert result["status"] == "partial"
     assert result["units_delivered"] == 1000
     assert result["total_shortfall"] == 200
@@ -80,7 +78,7 @@ def test_shortage_triage_delivers_all_supply():
 
 def test_triage_on_balanced_problem_matches_plain_solve():
     s, d, c = data("us_retail_basic")
-    result = solve_with_shortage_triage(s, d, c)
+    result = triage_transportation_problem(s, d, c)
     assert result["status"] == "optimal"
     assert result["total_cost"] == 5700
     assert result["stores_short"] == []
@@ -88,7 +86,7 @@ def test_triage_on_balanced_problem_matches_plain_solve():
 
 def test_triage_prefers_delivering_over_saving_cost():
     # B can only be reached by an expensive route; triage must still use it rather than leave B short.
-    result = solve_with_shortage_triage({"W": 10}, {"A": 5, "B": 10}, {"W": {"A": 1, "B": 100}})
+    result = triage_transportation_problem({"W": 10}, {"A": 5, "B": 10}, {"W": {"A": 1, "B": 100}})
     assert result["units_delivered"] == 10
     assert result["total_shortfall"] == 5
 
@@ -121,13 +119,16 @@ def test_formulation():
     s, d, c = data("us_retail_shortage")
     f = formulate_transportation_problem(s, d, c)
     assert f["status"] == "ok"
-    assert len(f["variables"]) == 12
-    assert len(f["supply_constraints"]) == 3 and len(f["demand_constraints"]) == 4
+    supply, demand = f["model"]["groups"]
+    assert len(supply["lines"]) == 3 and len(demand["lines"]) == 4
+    assert "(12 variables)" in f["model"]["variables"]
     assert f["balance"] == "shortage"
+    assert f["display"]["tables"][0]["rows"][0][0] == "Dallas"
 
 
-def test_scenario_tools():
-    names = {sc["name"] for sc in list_sample_scenarios()["scenarios"]}
-    assert {"us_retail_basic", "us_retail_surplus", "us_retail_shortage"} <= names
-    assert load_sample_scenario("us_retail_basic")["supplies"]["Denver"] == 500
-    assert load_sample_scenario("nope")["status"] == "error"
+def test_network_marks_used_routes():
+    s, d, c = data("us_retail_basic")
+    net = solve_transportation_problem(s, d, c)["display"]["network"]
+    used = {(e["from"], e["to"]) for e in net["edges"] if e["used"]}
+    assert used == {(f, t) for f, t, _ in plan(solve_transportation_problem(s, d, c))}
+    assert len(net["edges"]) == 12 and {n["role"] for n in net["nodes"]} == {"supply", "demand"}
