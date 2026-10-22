@@ -18,19 +18,7 @@ When the problem has no solution as stated (not enough stock, a lane that can't 
 
 ### How it works
 
-```mermaid
-flowchart LR
-    Q[Question in<br/>plain language] --> I[Identify<br/>problem type]
-    I --> F[Formulate<br/>the model]
-    F --> S[Exact solve<br/>PuLP / CBC]
-    S -->|solvable| R[Plan + cost<br/>+ explanation]
-    S -->|no solution| T[Automatic triage:<br/>best partial plan]
-    T --> R
-    R --> V[Visualize result:<br/>Diagram or Map]
-    I -.->|real place names| P[Locate places<br/>OpenStreetMap]
-    P -.-> V
-    R -->|what-if follow-up| F
-```
+<img width="2160" height="2700" alt="slide_1" src="https://github.com/user-attachments/assets/712dff98-8ee1-4e05-aba8-87f897b351cd" />
 
 The plan is visualized only at the end, with the result: a diagram (Cytoscape.js), or a map (Leaflet + OpenStreetMap) when the problem names real places, whose coordinates are looked up after the type is identified.
 
