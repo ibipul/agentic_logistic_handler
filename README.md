@@ -18,7 +18,7 @@ When the problem has no solution as stated (not enough stock, a lane that can't 
 
 ### How it works
 
-<img width="2160" height="2700" alt="slide_1" src="https://github.com/user-attachments/assets/712dff98-8ee1-4e05-aba8-87f897b351cd" />
+<img width="1993" height="1757" alt="how_it_works" src="https://github.com/user-attachments/assets/6fb699da-9ce1-439d-ac8c-87b3b6e7a024" />
 
 The plan is visualized only at the end, with the result: a diagram (Cytoscape.js), or a map (Leaflet + OpenStreetMap) when the problem names real places, whose coordinates are looked up after the type is identified.
 
